@@ -3,25 +3,57 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f6f8ff;
+  --foreground: #1a1d2e;
 }
 
 body {
-  color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--foreground);
+  /* 细线条网格底纹：极简 + 线条感 */
+  background-image:
+    linear-gradient(to right, rgba(77, 107, 254, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(77, 107, 254, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* 像素风渲染：放大时保持硬边 */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* 像素方块装饰 */
+@keyframes pixel-blink {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.25; }
+}
+.pixel-blink {
+  animation: pixel-blink 1.2s steps(1) infinite;
+}
+
+/* 细线条卡片（line-based，不用厚重阴影） */
+.line-card {
+  background: #ffffff;
+  border: 1px solid #e3e9fb;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.line-card:hover {
+  border-color: #c7d2fe;
+}
+
+/* 自定义滚动条：细线条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c7d2fe;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4d6bfe;
 }

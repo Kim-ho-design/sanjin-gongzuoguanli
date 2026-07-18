@@ -11,6 +11,27 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        kimi: {
+          50: "#EEF2FF",
+          100: "#E0E7FF",
+          200: "#C7D2FE",
+          300: "#A5B4FC",
+          400: "#818CF8",
+          500: "#4D6BFE",
+          600: "#3F56E3",
+          700: "#3545C0",
+          800: "#2E3A99",
+          900: "#252F6E",
+        },
+        ink: {
+          DEFAULT: "#1A1D2E",
+          soft: "#5A6280",
+          faint: "#9AA3C0",
+        },
+        line: "#E3E9FB",
+      },
+      fontFamily: {
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
     },
   },

@@ -1,101 +1,196 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import type { ParseResult, Project, Task, TaskStatus, Unclaimed } from '@/lib/types';
+import type { ApplySummary } from '@/lib/apply';
+import Board from '@/components/Board';
+import TopBar, { BoardStats } from '@/components/TopBar';
+import InputBox from '@/components/InputBox';
+import ConfirmCard from '@/components/ConfirmCard';
+import TaskDetail from '@/components/TaskDetail';
+import UnclaimedPanel from '@/components/UnclaimedPanel';
+import { PixelLogo } from '@/components/Pixel';
+
+interface BoardData {
+  projects: Project[];
+  tasks: Task[];
+  unclaimed: Unclaimed[];
+  stats: BoardStats;
+}
+
+export default function HomePage() {
+  const [data, setData] = useState<BoardData | null>(null);
+  const [error, setError] = useState('');
+  const [filterProject, setFilterProject] = useState<number | 0>(0); // 0 = 全部
+  const [pendingParse, setPendingParse] = useState<{ rawText: string; parsed: ParseResult } | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<number | null>(null);
+  const [showDrift, setShowDrift] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/board', { cache: 'no-store' });
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+      if (!res.ok) throw new Error('加载失败');
+      setData(await res.json());
+    } catch {
+      setError('数据加载失败，请刷新重试');
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  }
+
+  async function moveTask(task: Task, status: TaskStatus) {
+    // 乐观更新
+    setData((d) =>
+      d ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, status } : t)) } : d,
+    );
+    await fetch(`/api/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    load();
+  }
+
+  async function toggleToday(task: Task) {
+    setData((d) =>
+      d
+        ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, is_today: t.is_today ? 0 : 1 } : t)) }
+        : d,
+    );
+    await fetch(`/api/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_today: !task.is_today }),
+    });
+    load();
+  }
+
+  function handleParsed(rawText: string, parsed: ParseResult) {
+    if (parsed.intent === 'weekly_review') {
+      window.location.href = '/report';
+      return;
+    }
+    setPendingParse({ rawText, parsed });
+  }
+
+  function handleConfirmed(summary: ApplySummary) {
+    setPendingParse(null);
+    showToast(summary.actions.join('；') || '已入库');
+    load();
+  }
+
+  const filteredTasks =
+    data?.tasks.filter((t) => filterProject === 0 || t.project_id === filterProject) ?? [];
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <main className="min-h-screen flex flex-col">
+      {/* 顶栏 */}
+      <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-white/70 backdrop-blur">
+        <PixelLogo size={26} />
+        <h1 className="font-bold tracking-wide">工作OS</h1>
+        <span className="text-[10px] font-mono text-ink-faint tracking-widest hidden sm:inline">
+          PLAN · DO · LOG · REVIEW
+        </span>
+        <Link
+          href="/report"
+          className="ml-auto text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+        >
+          📊 周报
+        </Link>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="px-5 py-4 flex flex-col gap-4 flex-1">
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        {data && <TopBar stats={data.stats} onOpenDrift={() => setShowDrift(true)} />}
+
+        {/* 唯一输入口 */}
+        <InputBox onParsed={handleParsed} />
+
+        {/* 项目筛选 */}
+        {data && (
+          <div className="flex gap-1.5 flex-wrap items-center">
+            <button
+              onClick={() => setFilterProject(0)}
+              className={`text-xs border rounded-full px-3 py-1 transition-colors ${
+                filterProject === 0
+                  ? 'bg-ink text-white border-ink'
+                  : 'border-line bg-white hover:border-kimi-400'
+              }`}
+            >
+              全部
+            </button>
+            {data.projects.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setFilterProject(p.id)}
+                className={`text-xs border rounded-full px-3 py-1 transition-colors flex items-center gap-1.5 ${
+                  filterProject === p.id
+                    ? 'bg-ink text-white border-ink'
+                    : 'border-line bg-white hover:border-kimi-400'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-[2px]" style={{ backgroundColor: p.color }} />
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 看板 */}
+        {data ? (
+          <Board
+            tasks={filteredTasks}
+            onOpen={(t) => setOpenTaskId(t.id)}
+            onMove={moveTask}
+            onToggleToday={toggleToday}
+          />
+        ) : (
+          !error && <p className="text-sm text-ink-faint py-10 text-center">加载中…</p>
+        )}
+      </div>
+
+      {/* 弹层 */}
+      {pendingParse && data && (
+        <ConfirmCard
+          rawText={pendingParse.rawText}
+          parsed={pendingParse.parsed}
+          projects={data.projects}
+          onDone={handleConfirmed}
+          onCancel={() => setPendingParse(null)}
+        />
+      )}
+      {openTaskId !== null && (
+        <TaskDetail taskId={openTaskId} onClose={() => setOpenTaskId(null)} onChanged={load} />
+      )}
+      {showDrift && data && (
+        <UnclaimedPanel
+          unclaimed={data.unclaimed}
+          tasks={data.tasks}
+          onClose={() => setShowDrift(false)}
+          onChanged={load}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-white text-xs rounded-lg px-4 py-2.5 shadow-lg z-50 max-w-lg">
+          {toast}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      )}
+    </main>
   );
 }
