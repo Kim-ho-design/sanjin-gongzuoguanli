@@ -22,6 +22,9 @@ export default function TaskCard({
   });
 
   const overdue = isOverdue(task.deadline, task.status) || isOverdue(task.planned_date, task.status);
+  // 既有对外截止又有提前的个人计划 → 需前置完成
+  const needAhead =
+    !!task.deadline && !!task.planned_date && task.planned_date < task.deadline && task.status !== '已完成';
 
   return (
     <div
@@ -47,6 +50,11 @@ export default function TaskCard({
         {task.is_plan_item === 1 && (
           <span className="text-[9px] font-mono text-kimi-600 border border-kimi-200 rounded px-1 leading-3 shrink-0">
             计划
+          </span>
+        )}
+        {needAhead && (
+          <span className="text-[9px] font-mono text-white bg-kimi-500 rounded px-1 leading-3 shrink-0">
+            需前置完成
           </span>
         )}
         <span className="ml-auto flex items-center gap-1 shrink-0">
