@@ -29,11 +29,11 @@ export async function GET() {
       (t.is_today === 1 || t.planned_date === today || t.deadline === today),
   );
 
-  // 顶部聚合条 2：本周完成率（本周计划项 vs 已完成）
+  // 顶部聚合条 2：本周完成率
+  // 口径（v6.1 收紧）：分母 = 对外截止 deadline 落在本周的任务（本周必须交付的事）
+  // 分子 = 其中已出结果的（已完成/待确认审核）；只有个人计划、无对外承诺的任务不计入
   const weekPlanItems = tasks.filter(
-    (t) =>
-      (t.planned_date && t.planned_date >= start && t.planned_date <= end) ||
-      (t.deadline && t.deadline >= start && t.deadline <= end),
+    (t) => t.deadline && t.deadline >= start && t.deadline <= end,
   );
   const weekDone = weekPlanItems.filter(
     (t) => t.status === '已完成' || t.status === '待确认审核',
