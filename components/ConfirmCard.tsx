@@ -168,7 +168,7 @@ export default function ConfirmCard({
                     onChange={(e) => updateTask(i, { status: e.target.value })}
                     className="input-dark px-1.5 py-1 text-[11px]"
                   >
-                    {TASK_STATUSES.filter((s) => s !== '归档').map((s) => (
+                    {TASK_STATUSES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>

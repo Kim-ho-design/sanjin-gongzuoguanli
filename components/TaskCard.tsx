@@ -9,10 +9,12 @@ export default function TaskCard({
   task,
   onOpen,
   onToggleToday,
+  onComplete,
 }: {
   task: Task;
   onOpen: (task: Task) => void;
   onToggleToday: (task: Task) => void;
+  onComplete: (task: Task) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `task-${task.id}`,
@@ -47,19 +49,37 @@ export default function TaskCard({
             计划
           </span>
         )}
-        <button
-          className={`ml-auto shrink-0 transition-opacity ${
-            task.is_today ? 'opacity-100' : 'opacity-0 group-hover:opacity-40 hover:!opacity-100'
-          }`}
-          title={task.is_today ? '移出今日' : '加入今日'}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleToday(task);
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <PixelStar size={13} color={task.is_today ? '#F5A623' : '#C4CBE0'} />
-        </button>
+        <span className="ml-auto flex items-center gap-1 shrink-0">
+          {task.status !== '已完成' && (
+            <button
+              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-emerald-500 hover:text-emerald-600"
+              title="完成（一键进已完成）"
+              onClick={(e) => {
+                e.stopPropagation();
+                onComplete(task);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M4.5 7l1.8 1.8L9.8 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+          <button
+            className={`transition-opacity ${
+              task.is_today ? 'opacity-100' : 'opacity-0 group-hover:opacity-40 hover:!opacity-100'
+            }`}
+            title={task.is_today ? '移出今日' : '加入今日'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleToday(task);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <PixelStar size={13} color={task.is_today ? '#F5A623' : '#C4CBE0'} />
+          </button>
+        </span>
       </div>
 
       <p className="text-[13px] font-medium leading-snug text-ink">{task.name}</p>

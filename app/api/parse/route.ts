@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       .prepare(
         `SELECT t.name, p.name AS project_name, t.status
          FROM tasks t JOIN projects p ON p.id = t.project_id
-         WHERE t.status NOT IN ('已完成', '归档')
+         WHERE t.status != '已完成'
          ORDER BY t.id DESC LIMIT 100`,
       )
       .all() as { name: string; project_name: string; status: string }[];

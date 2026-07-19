@@ -22,7 +22,7 @@ export function matchTask(name: string): Task | null {
     .prepare(
       `SELECT t.*, p.name AS project_name FROM tasks t
        JOIN projects p ON p.id = t.project_id
-       WHERE t.status != '归档'`,
+       WHERE t.status != '已完成'`,
     )
     .all() as Task[];
   const target = norm(name);
@@ -70,36 +70,6 @@ export function applyParseResult(
 ): ApplySummary {
   const db = getDb();
   const summary: ApplySummary = { actions: [], task_ids: [], unclaimed_id: null };
-
-  // ---- 服务端兜底：拆任务规则确定性执行（不依赖 LLM 发挥） ----
-  // 1) 同一任务同时带 deadline 和 planned_date 且不同 → 自动拆出计划任务
-  const expanded: ParsedTask[] = [];
-  for (const pt of parsed.tasks) {
-    if (!pt.is_plan_item && pt.deadline && pt.planned_date && pt.deadline !== pt.planned_date) {
-      expanded.push({ ...pt, planned_date: null });
-      expanded.push({
-        name: pt.name,
-        matched_existing: false,
-        status: pt.status,
-        deadline: null,
-        planned_date: pt.planned_date,
-        is_plan_item: true,
-        parent_task_name: pt.name,
-      });
-    } else {
-      expanded.push(pt);
-    }
-  }
-  // 2) 计划任务没带 parent_task_name → 若同次解析只有一个主任务则指向它
-  const mainTasks = expanded.filter((t) => !t.is_plan_item);
-  for (const pt of expanded) {
-    if (pt.is_plan_item && !pt.parent_task_name && mainTasks.length === 1) {
-      pt.parent_task_name = mainTasks[0].name;
-    }
-  }
-  parsed = { ...parsed, tasks: expanded };
-  // ----------------------------------------------------------
-
   const parsedJson = JSON.stringify(parsed);
 
   // 1. 解析项目归属

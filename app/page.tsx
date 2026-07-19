@@ -10,6 +10,7 @@ import InputBox from '@/components/InputBox';
 import ConfirmCard from '@/components/ConfirmCard';
 import TaskDetail from '@/components/TaskDetail';
 import UnclaimedPanel from '@/components/UnclaimedPanel';
+import TodaySidebar from '@/components/TodaySidebar';
 import { AvatarLogo } from '@/components/Pixel';
 
 interface BoardData {
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [pendingParse, setPendingParse] = useState<{ rawText: string; parsed: ParseResult } | null>(null);
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
   const [showDrift, setShowDrift] = useState(false);
+  const [showToday, setShowToday] = useState(false);
   const [toast, setToast] = useState('');
 
   const load = useCallback(async () => {
@@ -121,7 +123,7 @@ export default function HomePage() {
       <div className="px-5 py-4 flex flex-col gap-4 flex-1">
         {error && <p className="text-sm text-red-400">{error}</p>}
 
-        {data && <TopBar stats={data.stats} onOpenDrift={() => setShowDrift(true)} />}
+        {data && <TopBar stats={data.stats} onOpenDrift={() => setShowDrift(true)} onOpenToday={() => setShowToday((v) => !v)} />}
 
         {/* 唯一输入口 */}
         <InputBox onParsed={handleParsed} />
@@ -156,14 +158,27 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 看板 */}
+        {/* 看板 + 今日侧栏 */}
         {data ? (
-          <Board
-            tasks={filteredTasks}
-            onOpen={(t) => setOpenTaskId(t.id)}
-            onMove={moveTask}
-            onToggleToday={toggleToday}
-          />
+          <div className="flex gap-3 items-start flex-1">
+            {showToday && (
+              <TodaySidebar
+                tasks={data.tasks}
+                onOpen={(t) => setOpenTaskId(t.id)}
+                onComplete={(t) => moveTask(t, '已完成')}
+                onClose={() => setShowToday(false)}
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <Board
+                tasks={filteredTasks}
+                onOpen={(t) => setOpenTaskId(t.id)}
+                onMove={moveTask}
+                onToggleToday={toggleToday}
+                onComplete={(t) => moveTask(t, '已完成')}
+              />
+            </div>
+          </div>
         ) : (
           !error && <p className="text-sm text-ink-faint py-10 text-center font-mono">LOADING…</p>
         )}

@@ -35,7 +35,7 @@ export function weekRange(dateStr: string): { start: string; end: string } {
 /** 是否逾期：deadline 早于今天且任务未完结 */
 export function isOverdue(deadline: string | null, status: string): boolean {
   if (!deadline) return false;
-  if (status === '已完成' || status === '归档') return false;
+  if (status === '已完成') return false;
   return deadline < todayStr();
 }
 

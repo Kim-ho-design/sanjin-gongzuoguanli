@@ -100,7 +100,6 @@ function renderBrief(
   const nextItems = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
-      t.status !== '归档' &&
       (inRange(t.planned_date, nw.start, nw.end) || inRange(t.deadline, nw.start, nw.end)),
   );
   const nextLines = nextItems.slice(0, 10).map((t) => {
@@ -187,7 +186,6 @@ function renderFull(
   const drifting = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
-      t.status !== '归档' &&
       ((t.deadline && t.deadline < today) || (t.planned_date && t.planned_date < today)),
   );
   lines.push('## 漂流瓶（超期未完成）', '');
@@ -205,7 +203,6 @@ function renderFull(
   const nextItems = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
-      t.status !== '归档' &&
       (inRange(t.planned_date, nw.start, nw.end) || inRange(t.deadline, nw.start, nw.end)),
   );
   lines.push('## 后续 7 天计划', '');

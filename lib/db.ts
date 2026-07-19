@@ -7,7 +7,7 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'work-os.db');
 
 const PROJECT_COLORS = [
-  '#4D6BFE', // Kimi 蓝
+  '#002FA7', // 克莱因蓝
   '#22B8CF',
   '#845EF7',
   '#F783AC',
@@ -71,6 +71,26 @@ function createDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_logs_task ON logs(task_id);
     CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at);
   `);
+
+  // v4 迁移：旧「归档」状态并入「已完成」（归档分类已改为待办事项）
+  db.prepare(`UPDATE tasks SET status = '已完成' WHERE status = '归档'`).run();
+
+  // v5 迁移：拆任务规则废除，历史计划任务对合并回主任务
+  db.prepare(
+    `UPDATE logs SET task_id = (SELECT parent_task_id FROM tasks WHERE tasks.id = logs.task_id)
+     WHERE task_id IN (SELECT id FROM tasks WHERE is_plan_item = 1 AND parent_task_id IS NOT NULL)`,
+  ).run();
+  db.prepare(
+    `UPDATE tasks SET planned_date = (
+       SELECT c.planned_date FROM tasks c WHERE c.parent_task_id = tasks.id AND c.is_plan_item = 1 AND c.planned_date IS NOT NULL LIMIT 1
+     )
+     WHERE planned_date IS NULL AND id IN (SELECT DISTINCT parent_task_id FROM tasks WHERE is_plan_item = 1 AND parent_task_id IS NOT NULL)`,
+  ).run();
+  db.prepare(
+    `DELETE FROM deliverables WHERE task_id IN (SELECT id FROM tasks WHERE is_plan_item = 1)`,
+  ).run();
+  db.prepare(`DELETE FROM tasks WHERE is_plan_item = 1 AND parent_task_id IS NOT NULL`).run();
+  db.prepare(`UPDATE tasks SET is_plan_item = 0 WHERE is_plan_item = 1`).run(); // 无主的计划任务转普通任务
 
   // 首次启动：写入预置项目
   const count = (db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }).c;

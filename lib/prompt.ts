@@ -35,7 +35,8 @@ ${projectList}
 【当前未完成任务列表】
 ${taskList}
 
-【看板状态列】待启动 / 进行中 / 待确认审核 / 已完成 / 归档
+【看板状态列】待办事项 / 待启动 / 进行中 / 待确认审核 / 已完成
+（待办事项 = 一次性的小动作、自我提醒类任务，做完即完，不走流程；流程性工作从「待启动」开始）
 
 【输出 Schema】（严格遵守，只输出 JSON，不要任何解释）
 {
@@ -71,17 +72,18 @@ ${taskList}
    - deadline = 对外截止日期：交付给别人、对外承诺的那一天（"周四要交"/"截止周五"）
    - planned_date = 个人计划日期：我自己打算哪天去做（"我周三写"/"下周一记得约会议"/"别忘了做X"）
    - "记得做X"/"别忘了X"/"下周一要X"这类自我提醒 → 只填 planned_date，deadline 留 null
-7. 【拆任务规则】一句话同时出现对外截止时间和个人计划完成时间且不同时，拆成两条任务：主任务带 deadline，另建一条计划任务带 planned_date，is_plan_item=true，parent_task_name 指向主任务。注意：主任务只填 deadline、planned_date 留 null；计划任务只填 planned_date、deadline 留 null。is_plan_item=true 只用于这种成对拆出的计划任务；独立的个人计划事项（如"下周二记得过一遍关键词库"）is_plan_item 填 false。
+   - 【待办事项判定】一次性的孤立小动作（约个会、发个消息、过一遍东西、记得带资料），没有后续流程的 → status 填「待办事项」；需要多步推进的创作/制作类工作 → 「待启动」
+7. 【日期合一规则】一句话同时出现对外截止时间和个人计划完成时间时，把两个日期填在同一条任务上：deadline 填对外截止，planned_date 填个人计划。禁止拆成两条任务，is_plan_item 一律填 false。
 8. 时间严格按【日期对照表】换算成 YYYY-MM-DD；对照表覆盖不到、算不准就留空并反问。
 9. 【指代不明必须反问】当某个时间/动作说不清属于哪条任务时（例如"我明天会完成"看不出在完成什么），不要猜测补全：对应字段留空，needs_confirmation=true，在 clarify_question 里问清楚。禁止编造任务名、项目名、数字。
 10. 交付物必须提取到 log.deliverable：只放具体的文件名、链接、成片/作品名；不要把任务名当交付物。
-11. 状态列里没有"归档"的用法：解析输出永远不要给任务填「归档」状态。
+11. 「待办事项」只用于一次性小动作；状态列里没有"归档"，解析输出永远不要给任务填「归档」状态。
 12. 只输出符合 schema 的 JSON，不要输出任何其他内容。
 
-【示例1：拆任务】
-输入："星期四要完成三期脚本的初稿，我星期三写完它"（假设周一=07-20、周三=07-22、周四=07-23）
-输出：{"intent":"set_plan","project":{"name":"","is_new":false,"confidence":0},"tasks":[{"name":"三期脚本初稿","matched_existing":false,"status":"待启动","deadline":"07-23","planned_date":null,"is_plan_item":false,"parent_task_name":null},{"name":"三期脚本初稿","matched_existing":false,"status":"待启动","deadline":null,"planned_date":"07-22","is_plan_item":true,"parent_task_name":"三期脚本初稿"}],"log":{"content":"","duration_hours":null,"deliverable":"","blocker":""},"needs_confirmation":true,"clarify_question":"这个任务属于哪个项目？"}
-（日期示例中为省略写法，实际输出必须是完整 YYYY-MM-DD；项目不明必须反问）
+【示例1：日期合一】
+输入："星期四要完成三期脚本的初稿，我星期三写完它"（假设周三=07-22、周四=07-23）
+要点：deadline=07-23、planned_date=07-22 填在同一条任务上，不拆条；项目不明必须反问
+输出：{"intent":"set_plan","project":{"name":"","is_new":false,"confidence":0},"tasks":[{"name":"三期脚本初稿","matched_existing":false,"status":"待启动","deadline":"2026-07-23","planned_date":"2026-07-22","is_plan_item":false,"parent_task_name":null}],"log":{"content":"","duration_hours":null,"deliverable":"","blocker":""},"needs_confirmation":true,"clarify_question":"这个任务属于哪个项目？"}
 
 【示例2：混合多动作 + 指代不明反问】
 输入："一站式第五周脚本有2期已经完成，下周一记得和青姐约脚本会+选题会时间，我明天会完成"

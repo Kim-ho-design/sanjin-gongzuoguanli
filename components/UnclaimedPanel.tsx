@@ -16,7 +16,7 @@ export default function UnclaimedPanel({
   onChanged: () => void;
 }) {
   const [claimTarget, setClaimTarget] = useState<Record<number, number | ''>>({});
-  const activeTasks = tasks.filter((t) => t.status !== '归档');
+  const activeTasks = tasks;
 
   async function claim(id: number) {
     const taskId = claimTarget[id];

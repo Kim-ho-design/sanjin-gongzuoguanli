@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     planned_date: string | null;
     is_today: boolean;
     project_id: number;
+    completed_date: string | null;
   }>;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(params.id) as
@@ -72,6 +73,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (body.is_today !== undefined) {
     sets.push('is_today = ?');
     vals.push(body.is_today ? 1 : 0);
+  }
+  if (body.completed_date !== undefined) {
+    // 手动修正实际完成时间（YYYY-MM-DD 或 null）
+    sets.push('completed_at = ?');
+    vals.push(body.completed_date ? `${body.completed_date} 12:00:00` : null);
   }
   if (body.project_id !== undefined) {
     sets.push('project_id = ?');

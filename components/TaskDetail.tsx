@@ -92,20 +92,56 @@ export default function TaskDetail({
         className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 头部 */}
+        {/* 头部（任务名可编辑） */}
         <div className="flex items-start gap-2 mb-4">
-          <span className="w-2.5 h-2.5 rounded-[2px] mt-1.5 shrink-0" style={{ backgroundColor: task.project_color }} />
+          <span className="w-2.5 h-2.5 rounded-[2px] mt-2 shrink-0" style={{ backgroundColor: task.project_color }} />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] text-ink-faint">{task.project_name}</p>
-            <h2 className="text-base font-bold leading-snug">{task.name}</h2>
+            <input
+              key={task.id}
+              defaultValue={task.name}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v && v !== task.name) patch({ name: v });
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+              className="text-base font-bold leading-snug w-full bg-transparent outline-none border-b border-transparent focus:border-kimi-400 transition-colors"
+            />
           </div>
           <button onClick={onClose} className="text-ink-faint hover:text-ink text-lg leading-none px-1">×</button>
         </div>
 
-        {/* 日期信息 */}
-        <div className="flex gap-4 text-xs font-mono text-ink-soft mb-4 border border-line rounded-lg p-2.5">
-          <span title="承诺交给别人的那天">对外截止：{task.deadline ?? '—'}</span>
-          <span title="自己打算哪天做">我的计划：{task.planned_date ?? '—'}</span>
+        {/* 日期信息（均可编辑） */}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-mono text-ink-soft mb-4 border border-line rounded-lg p-2.5">
+          <label className="flex items-center gap-1" title="承诺交给别人的那天">
+            对外截止
+            <input
+              type="date"
+              defaultValue={task.deadline ?? ''}
+              onChange={(e) => patch({ deadline: e.target.value || null })}
+              className="input-dark px-1.5 py-0.5 text-[11px]"
+            />
+          </label>
+          <label className="flex items-center gap-1" title="自己打算哪天做">
+            我的计划
+            <input
+              type="date"
+              defaultValue={task.planned_date ?? ''}
+              onChange={(e) => patch({ planned_date: e.target.value || null })}
+              className="input-dark px-1.5 py-0.5 text-[11px]"
+            />
+          </label>
+          {task.completed_at && (
+            <label className="flex items-center gap-1" title="实际完成时间，可按真实情况修正">
+              完成于
+              <input
+                type="date"
+                defaultValue={task.completed_at.slice(0, 10)}
+                onChange={(e) => e.target.value && patch({ completed_date: e.target.value })}
+                className="input-dark px-1.5 py-0.5 text-[11px]"
+              />
+            </label>
+          )}
           {task.is_plan_item === 1 && <span className="text-kimi-600">计划任务</span>}
         </div>
 
@@ -116,7 +152,7 @@ export default function TaskDetail({
             <button
               key={s}
               onClick={() => patch({ status: s })}
-              title={s === '归档' ? '归档 = 彻底闭环（验收通过）或不做了，从日常视野收起，数据保留' : undefined}
+              title={s === '待办事项' ? '一次性小动作/提醒，做完点✓直接完成，不走流程' : undefined}
               className={`text-xs border rounded-full px-2.5 py-1 transition-colors ${
                 task.status === s
                   ? 'bg-kimi-500 text-white border-kimi-500'
@@ -128,7 +164,7 @@ export default function TaskDetail({
           ))}
         </div>
         <p className="text-[10px] text-ink-faint mb-5">
-          已完成=验收通过；归档=彻底闭环或不做了，从看板收起只留档
+          待办事项=一次性小事；待确认审核=交付待验收；已完成=验收通过
         </p>
 
         {/* 子任务（拆任务的计划项） */}

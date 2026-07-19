@@ -26,7 +26,6 @@ export async function GET() {
   const todayTasks = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
-      t.status !== '归档' &&
       (t.is_today === 1 || t.planned_date === today || t.deadline === today),
   );
 
@@ -44,7 +43,6 @@ export async function GET() {
   const overdue = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
-      t.status !== '归档' &&
       ((t.deadline && t.deadline < today) || (t.planned_date && t.planned_date < today)),
   );
 

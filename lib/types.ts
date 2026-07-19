@@ -1,6 +1,6 @@
 // 共享类型定义（前后端通用）
 
-export const TASK_STATUSES = ['待启动', '进行中', '待确认审核', '已完成', '归档'] as const;
+export const TASK_STATUSES = ['待办事项', '待启动', '进行中', '待确认审核', '已完成'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export const PROJECT_STATUSES = ['进行中', '暂停', '完结'] as const;

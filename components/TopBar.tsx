@@ -14,16 +14,21 @@ export interface BoardStats {
 export default function TopBar({
   stats,
   onOpenDrift,
+  onOpenToday,
 }: {
   stats: BoardStats;
   onOpenDrift: () => void;
+  onOpenToday: () => void;
 }) {
   const rate = stats.week_plan > 0 ? Math.round((stats.week_done / stats.week_plan) * 100) : null;
 
   return (
     <div className="grid grid-cols-3 gap-3">
-      {/* 今日计划 */}
-      <div className="panel px-4 py-3 flex items-center gap-3">
+      {/* 今日计划（点击展开左侧栏） */}
+      <button
+        onClick={onOpenToday}
+        className="panel px-4 py-3 flex items-center gap-3 text-left hover:border-kimi-300 cursor-pointer transition-colors"
+      >
         <PixelStar size={18} />
         <div className="min-w-0">
           <p className="text-[10px] text-ink-faint font-mono tracking-[0.18em]">今日计划 TODAY</p>
@@ -31,7 +36,8 @@ export default function TopBar({
             <PixelNumber value={String(stats.today_count)} size={3.5} />
           </div>
         </div>
-      </div>
+        <span className="ml-auto text-[10px] text-ink-faint font-mono">展开 ›</span>
+      </button>
 
       {/* 本周完成率 */}
       <div className="panel px-4 py-3">

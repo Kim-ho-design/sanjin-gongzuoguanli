@@ -8,13 +8,13 @@ import type { Task, TaskStatus } from '@/lib/types';
 import TaskCard from './TaskCard';
 import { PixelEmpty } from './Pixel';
 
-// 五列 LED 状态灯配色（深色终端风）
+// 五列 LED 状态灯配色
 const COLUMN_THEME: Record<TaskStatus, { dot: string; glow: boolean; hint: string }> = {
+  待办事项: { dot: '#22B8CF', glow: false, hint: '一次性小事' },
   待启动: { dot: '#64748B', glow: false, hint: '排队中' },
-  进行中: { dot: '#4D7CFE', glow: true, hint: '正在推进' },
+  进行中: { dot: '#002FA7', glow: true, hint: '正在推进' },
   待确认审核: { dot: '#F5A623', glow: true, hint: '交付待验收' },
   已完成: { dot: '#34D399', glow: false, hint: '验收通过' },
-  归档: { dot: '#3A4358', glow: false, hint: '闭环收起 · 仅留档' },
 };
 
 function Column({
@@ -22,11 +22,13 @@ function Column({
   tasks,
   onOpen,
   onToggleToday,
+  onComplete,
 }: {
   status: TaskStatus;
   tasks: Task[];
   onOpen: (t: Task) => void;
   onToggleToday: (t: Task) => void;
+  onComplete: (t: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${status}` });
   const theme = COLUMN_THEME[status];
@@ -47,12 +49,12 @@ function Column({
         <span
           className="text-[9px] font-mono text-ink-faint hidden xl:inline cursor-help"
           title={
-            status === '归档'
-              ? '归档 = 彻底闭环（验收通过不再变动）或决定不做的任务。从日常视野收起，数据保留，只在周报留痕。只能手动归档，系统不会自动归档。'
+            status === '待办事项'
+              ? '待办事项 = 一次性的小动作/提醒（约会议、发消息、过一遍东西），做完点卡片上的 ✓ 直接进已完成，不走流程。卡片需要有明确的计划时间。'
               : status === '待确认审核'
                 ? '活干完交付了，等对方验收确认；验收通过 → 已完成'
                 : status === '已完成'
-                  ? '验收通过、尘埃落定；不再需要跟踪时可手动归档收起'
+                  ? '验收通过、尘埃落定'
                   : undefined
           }
         >
@@ -65,7 +67,7 @@ function Column({
           <PixelEmpty text="EMPTY" />
         ) : (
           tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onOpen={onOpen} onToggleToday={onToggleToday} />
+            <TaskCard key={t.id} task={t} onOpen={onOpen} onToggleToday={onToggleToday} onComplete={onComplete} />
           ))
         )}
       </div>
@@ -78,11 +80,13 @@ export default function Board({
   onOpen,
   onMove,
   onToggleToday,
+  onComplete,
 }: {
   tasks: Task[];
   onOpen: (t: Task) => void;
   onMove: (task: Task, status: TaskStatus) => void;
   onToggleToday: (t: Task) => void;
+  onComplete: (t: Task) => void;
 }) {
   const [dragging, setDragging] = useState<Task | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -116,6 +120,7 @@ export default function Board({
             tasks={sorted.filter((t) => t.status === s)}
             onOpen={onOpen}
             onToggleToday={onToggleToday}
+            onComplete={onComplete}
           />
         ))}
       </div>
