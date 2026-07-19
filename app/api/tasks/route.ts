@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '任务名和项目必填' }, { status: 400 });
   }
   const status = TASK_STATUSES.includes(body.status as never) ? body.status : '待启动';
+  const completedAt = status === '已完成' || status === '待确认审核' ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null;
   const r = getDb()
     .prepare(
-      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_today)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_today, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       body.name.trim(),
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       body.deadline || null,
       body.planned_date || null,
       body.is_today ? 1 : 0,
+      completedAt,
     );
   return NextResponse.json({ id: Number(r.lastInsertRowid) });
 }

@@ -35,9 +35,9 @@ export default function UnclaimedPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-line overflow-y-auto p-5"
+        className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-4">
@@ -51,7 +51,7 @@ export default function UnclaimedPanel({
         </p>
 
         {unclaimed.length === 0 && (
-          <p className="text-xs text-ink-faint text-center py-10">空空如也，很好 🎉</p>
+          <p className="text-xs text-ink-faint text-center py-10 font-mono tracking-widest">EMPTY · 空空如也 🎉</p>
         )}
 
         <div className="space-y-3">
@@ -65,7 +65,7 @@ export default function UnclaimedPanel({
                   onChange={(e) =>
                     setClaimTarget((s) => ({ ...s, [u.id]: e.target.value ? Number(e.target.value) : '' }))
                   }
-                  className="flex-1 text-xs border border-line rounded-lg px-2 py-1.5 outline-none focus:border-kimi-500 bg-white min-w-0"
+                  className="input-dark flex-1 text-xs px-2 py-1.5 min-w-0"
                 >
                   <option value="">选择归属任务…</option>
                   {activeTasks.map((t) => (
@@ -77,13 +77,13 @@ export default function UnclaimedPanel({
                 <button
                   onClick={() => claim(u.id)}
                   disabled={!claimTarget[u.id]}
-                  className="text-xs bg-kimi-500 text-white rounded-lg px-3 hover:bg-kimi-600 disabled:opacity-40"
+                  className="text-xs bg-kimi-500 text-white rounded-lg px-3 hover:bg-kimi-400 disabled:opacity-40"
                 >
                   认领
                 </button>
                 <button
                   onClick={() => discard(u.id)}
-                  className="text-xs text-ink-faint hover:text-red-500 px-1.5"
+                  className="text-xs text-ink-faint hover:text-red-400 px-1.5"
                   title="丢弃"
                 >
                   ×

@@ -10,7 +10,7 @@ import InputBox from '@/components/InputBox';
 import ConfirmCard from '@/components/ConfirmCard';
 import TaskDetail from '@/components/TaskDetail';
 import UnclaimedPanel from '@/components/UnclaimedPanel';
-import { PixelLogo } from '@/components/Pixel';
+import { AvatarLogo } from '@/components/Pixel';
 
 interface BoardData {
   projects: Project[];
@@ -96,24 +96,30 @@ export default function HomePage() {
     data?.tasks.filter((t) => filterProject === 0 || t.project_id === filterProject) ?? [];
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen ascii-bg flex flex-col">
       {/* 顶栏 */}
-      <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-white/70 backdrop-blur">
-        <PixelLogo size={26} />
-        <h1 className="font-bold tracking-wide">工作OS</h1>
-        <span className="text-[10px] font-mono text-ink-faint tracking-widest hidden sm:inline">
+      <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-panel/80 backdrop-blur">
+        <AvatarLogo size={32} />
+        <h1 className="font-bold tracking-wide">三金打工清单</h1>
+        <span className="text-[10px] font-mono text-ink-faint tracking-[0.25em] hidden sm:inline">
           PLAN · DO · LOG · REVIEW
         </span>
         <Link
-          href="/report"
+          href="/calendar"
           className="ml-auto text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+        >
+          📅 月视图
+        </Link>
+        <Link
+          href="/report"
+          className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
         >
           📊 周报
         </Link>
       </header>
 
       <div className="px-5 py-4 flex flex-col gap-4 flex-1">
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-red-400">{error}</p>}
 
         {data && <TopBar stats={data.stats} onOpenDrift={() => setShowDrift(true)} />}
 
@@ -127,8 +133,8 @@ export default function HomePage() {
               onClick={() => setFilterProject(0)}
               className={`text-xs border rounded-full px-3 py-1 transition-colors ${
                 filterProject === 0
-                  ? 'bg-ink text-white border-ink'
-                  : 'border-line bg-white hover:border-kimi-400'
+                  ? 'bg-kimi-500 text-white border-kimi-500'
+                  : 'border-line hover:border-kimi-400'
               }`}
             >
               全部
@@ -139,8 +145,8 @@ export default function HomePage() {
                 onClick={() => setFilterProject(p.id)}
                 className={`text-xs border rounded-full px-3 py-1 transition-colors flex items-center gap-1.5 ${
                   filterProject === p.id
-                    ? 'bg-ink text-white border-ink'
-                    : 'border-line bg-white hover:border-kimi-400'
+                    ? 'bg-kimi-500 text-white border-kimi-500'
+                    : 'border-line hover:border-kimi-400'
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-[2px]" style={{ backgroundColor: p.color }} />
@@ -159,7 +165,7 @@ export default function HomePage() {
             onToggleToday={toggleToday}
           />
         ) : (
-          !error && <p className="text-sm text-ink-faint py-10 text-center">加载中…</p>
+          !error && <p className="text-sm text-ink-faint py-10 text-center font-mono">LOADING…</p>
         )}
       </div>
 
@@ -187,7 +193,7 @@ export default function HomePage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-white text-xs rounded-lg px-4 py-2.5 shadow-lg z-50 max-w-lg">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-kimi-50 border border-kimi-200 text-ink text-xs rounded-lg px-4 py-2.5 shadow-lg shadow-kimi-500/20 z-50 max-w-lg">
           {toast}
         </div>
       )}

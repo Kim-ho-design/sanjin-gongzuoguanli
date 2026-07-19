@@ -36,8 +36,9 @@ export default function InputBox({
   }
 
   return (
-    <div className="line-card p-3">
+    <div className="panel p-3 !border-kimi-200/60">
       <div className="flex gap-2 items-start">
+        <span className="text-kimi-500 font-mono text-sm pt-1.5 pl-1 select-none">&gt;</span>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -49,17 +50,17 @@ export default function InputBox({
           }}
           placeholder="说人话就行：做了什么、要做什么、卡在哪了…（Enter 发送）"
           rows={1}
-          className="flex-1 resize-none text-sm outline-none px-2 py-1.5 placeholder:text-ink-faint bg-transparent"
+          className="flex-1 resize-none text-sm outline-none px-2 py-1.5 placeholder:text-ink-faint bg-transparent text-ink"
         />
         <button
           onClick={submit}
           disabled={loading || !text.trim()}
-          className="shrink-0 bg-kimi-500 hover:bg-kimi-600 text-white text-sm rounded-lg px-4 py-1.5 font-medium transition-colors disabled:opacity-40 flex items-center gap-2"
+          className="shrink-0 bg-kimi-500 hover:bg-kimi-400 text-white text-sm rounded-lg px-4 py-1.5 font-medium transition-colors disabled:opacity-40 flex items-center gap-2"
         >
           {loading ? <PixelLoader /> : '发送'}
         </button>
       </div>
-      {error && <p className="text-xs text-red-500 mt-1.5 px-2">{error}</p>}
+      {error && <p className="text-xs text-red-400 mt-1.5 px-2">{error}</p>}
     </div>
   );
 }

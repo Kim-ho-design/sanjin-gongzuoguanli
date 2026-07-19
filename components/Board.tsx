@@ -8,13 +8,13 @@ import type { Task, TaskStatus } from '@/lib/types';
 import TaskCard from './TaskCard';
 import { PixelEmpty } from './Pixel';
 
-// 五列低饱和配色（Kimi 蓝系延展）
-const COLUMN_THEME: Record<TaskStatus, { bg: string; dot: string }> = {
-  待启动: { bg: 'bg-slate-50/70', dot: '#94A3B8' },
-  进行中: { bg: 'bg-kimi-50/70', dot: '#4D6BFE' },
-  待确认审核: { bg: 'bg-amber-50/70', dot: '#F59E0B' },
-  已完成: { bg: 'bg-emerald-50/70', dot: '#10B981' },
-  归档: { bg: 'bg-gray-50/50', dot: '#C4CBE0' },
+// 五列 LED 状态灯配色（深色终端风）
+const COLUMN_THEME: Record<TaskStatus, { dot: string; glow: boolean; hint: string }> = {
+  待启动: { dot: '#64748B', glow: false, hint: '排队中' },
+  进行中: { dot: '#4D7CFE', glow: true, hint: '正在推进' },
+  待确认审核: { dot: '#F5A623', glow: true, hint: '交付待验收' },
+  已完成: { dot: '#34D399', glow: false, hint: '验收通过' },
+  归档: { dot: '#3A4358', glow: false, hint: '闭环收起 · 仅留档' },
 };
 
 function Column({
@@ -34,13 +34,30 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col flex-1 min-w-[220px] rounded-xl border border-line ${theme.bg} ${
-        isOver ? 'ring-2 ring-kimi-400 border-kimi-300' : ''
-      } transition-shadow`}
+      className={`flex flex-col flex-1 min-w-[220px] panel ${
+        isOver ? '!border-kimi-400 ring-1 ring-kimi-400/50' : ''
+      } transition-all`}
     >
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-line/70">
-        <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: theme.dot }} />
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-line">
+        <span
+          className={`w-2 h-2 rounded-full ${theme.glow ? 'led-glow' : ''}`}
+          style={{ backgroundColor: theme.dot, color: theme.dot }}
+        />
         <span className="text-xs font-bold tracking-wide">{status}</span>
+        <span
+          className="text-[9px] font-mono text-ink-faint hidden xl:inline cursor-help"
+          title={
+            status === '归档'
+              ? '归档 = 彻底闭环（验收通过不再变动）或决定不做的任务。从日常视野收起，数据保留，只在周报留痕。只能手动归档，系统不会自动归档。'
+              : status === '待确认审核'
+                ? '活干完交付了，等对方验收确认；验收通过 → 已完成'
+                : status === '已完成'
+                  ? '验收通过、尘埃落定；不再需要跟踪时可手动归档收起'
+                  : undefined
+          }
+        >
+          {theme.hint}
+        </span>
         <span className="ml-auto text-[10px] font-mono text-ink-faint">{tasks.length}</span>
       </div>
       <div className="flex-1 overflow-y-auto p-2 min-h-[120px]">
@@ -104,7 +121,7 @@ export default function Board({
       </div>
       <DragOverlay>
         {dragging ? (
-          <div className="w-56 line-card p-3 border-kimi-400 shadow-lg shadow-kimi-100">
+          <div className="w-56 line-card p-3 !border-kimi-400 shadow-lg shadow-kimi-500/20">
             <p className="text-[13px] font-medium">{dragging.name}</p>
           </div>
         ) : null}

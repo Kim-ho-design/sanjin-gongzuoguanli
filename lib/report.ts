@@ -1,6 +1,6 @@
 // 周报：服务端聚合 + 双口径模板渲染（模板与数据分离，需求文档第 5 节 + 用户追加格式要求）
 import { getDb } from './db';
-import { weekRange, inRange, todayStr } from './utils';
+import { inRange, todayStr } from './utils';
 import type { Task, Log, Deliverable, Project } from './types';
 
 interface TaskRow extends Task {
@@ -36,11 +36,11 @@ function loadDeliverables(taskIds: number[]): Deliverable[] {
     .all(...taskIds) as Deliverable[];
 }
 
-function nextWeekRange(start: string): { start: string; end: string } {
-  const s = new Date(`${start}T00:00:00`);
-  s.setDate(s.getDate() + 7);
+function nextRange(end: string, days = 7): { start: string; end: string } {
+  const s = new Date(`${end}T00:00:00`);
+  s.setDate(s.getDate() + 1);
   const e = new Date(s);
-  e.setDate(e.getDate() + 6);
+  e.setDate(e.getDate() + days - 1);
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { start: fmt(s), end: fmt(e) };
@@ -48,8 +48,8 @@ function nextWeekRange(start: string): { start: string; end: string } {
 
 export type ReportType = 'brief' | 'full';
 
-export function generateReport(dateStr: string, type: ReportType): string {
-  const { start, end } = weekRange(dateStr);
+/** 按时间区间生成报告（start/end 为 YYYY-MM-DD，闭区间） */
+export function generateReport(start: string, end: string, type: ReportType): string {
   const tasks = loadTasks();
   const logs = loadLogs(start, end);
   const title = `${start} ~ ${end}`;
@@ -96,7 +96,7 @@ function renderBrief(
   const blockerLines = blockers.map((l) => `- 「${l.task_name}」：${l.blocker}`);
 
   // 下周计划：仅下周有明确日期的事项（planned_date / deadline 落在下周）
-  const nw = nextWeekRange(start);
+  const nw = nextRange(end);
   const nextItems = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
@@ -112,13 +112,13 @@ function renderBrief(
   return [
     `# 工作周报（${title}）`,
     '',
-    '## 本周完成情况',
+    '## 完成情况',
     ...(lines.length ? lines : ['- （本周暂无记录）']),
     '',
     '## 风险 / 卡点',
     ...(blockerLines.length ? blockerLines : ['- 无']),
     '',
-    '## 下周计划',
+    '## 后续 7 天计划',
     ...(nextLines.length ? nextLines : ['- （暂无明确排期）']),
     '',
   ].join('\n');
@@ -165,7 +165,7 @@ function renderFull(
       );
       const tlogs = weekLogsByTask.get(t.id) ?? [];
       if (tlogs.length) {
-        lines.push('- 本周记录：');
+        lines.push('- 区间记录：');
         for (const l of tlogs) {
           const meta = [l.duration_hours ? `${l.duration_hours}h` : '', l.blocker ? `卡点：${l.blocker}` : '']
             .filter(Boolean)
@@ -181,7 +181,7 @@ function renderFull(
   // 耗时汇总
   const totalHours = logs.reduce((s, l) => s + (l.duration_hours ?? 0), 0);
   lines.push('## 耗时汇总', '');
-  lines.push(`- 本周记录总耗时：${totalHours > 0 ? `${totalHours} 小时` : '未记录'}`, '');
+  lines.push(`- 区间记录总耗时：${totalHours > 0 ? `${totalHours} 小时` : '未记录'}`, '');
 
   // 未完成漂流瓶：逾期未动
   const drifting = tasks.filter(
@@ -201,14 +201,14 @@ function renderFull(
   lines.push('');
 
   // 下周计划
-  const nw = nextWeekRange(start);
+  const nw = nextRange(end);
   const nextItems = tasks.filter(
     (t) =>
       t.status !== '已完成' &&
       t.status !== '归档' &&
       (inRange(t.planned_date, nw.start, nw.end) || inRange(t.deadline, nw.start, nw.end)),
   );
-  lines.push('## 下周计划', '');
+  lines.push('## 后续 7 天计划', '');
   if (nextItems.length) {
     for (const t of nextItems) {
       const date = t.planned_date ?? t.deadline;

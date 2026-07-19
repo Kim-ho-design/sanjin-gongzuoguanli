@@ -48,12 +48,13 @@ function findProject(name: string): { id: number; name: string } | null {
 function createTask(pt: ParsedTask, projectId: number, parentTaskId: number | null): number {
   const db = getDb();
   const status = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '待启动';
+  const completedAt = status === '已完成' || status === '待确认审核' ? nowStr() : null;
   const r = db
     .prepare(
-      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(pt.name, projectId, status, pt.deadline, pt.planned_date, pt.is_plan_item ? 1 : 0, parentTaskId);
+    .run(pt.name, projectId, status, pt.deadline, pt.planned_date, pt.is_plan_item ? 1 : 0, parentTaskId, completedAt);
   return Number(r.lastInsertRowid);
 }
 

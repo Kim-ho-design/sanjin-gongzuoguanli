@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ParseResult, Project } from '@/lib/types';
+import { TASK_STATUSES } from '@/lib/types';
 import type { ApplySummary } from '@/lib/apply';
 import { PixelLoader } from './Pixel';
 
@@ -27,24 +28,45 @@ export default function ConfirmCard({
   onDone: (summary: ApplySummary) => void;
   onCancel: () => void;
 }) {
-  // 反问环节用户的选择：已有项目 id / 新建项目名
-  const [choice, setChoice] = useState<
-    { mode: 'existing'; project_id: number } | { mode: 'new'; name: string } | null
-  >(null);
-  const [newName, setNewName] = useState(parsed.project.name || '');
+  // 可编辑副本：入库前所有细节都能改（任务名/日期/状态/项目/日志）
+  const [edited, setEdited] = useState<ParseResult>(() => JSON.parse(JSON.stringify(parsed)));
+  // 项目选择：existing:id | new | null（未选择）
+  const matchedProject = projects.find(
+    (p) => p.name === parsed.project.name || p.name.includes(parsed.project.name) || parsed.project.name.includes(p.name),
+  );
+  const [projSel, setProjSel] = useState<string>(
+    parsed.project.is_new ? 'new' : matchedProject ? `existing:${matchedProject.id}` : '',
+  );
+  const [newName, setNewName] = useState(parsed.project.is_new ? parsed.project.name : '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const needChoice = parsed.needs_confirmation;
+  const hasTasks = edited.tasks.length > 0;
+  // 需要项目：有任务要建/改。日志挂不上任务时会进待认领区，不强制项目
+  const needProject = hasTasks;
+  const projMissing = needProject && !projSel;
+
+  function updateTask(i: number, patch: Partial<ParseResult['tasks'][number]>) {
+    setEdited((e) => ({
+      ...e,
+      tasks: e.tasks.map((t, idx) => (idx === i ? { ...t, ...patch } : t)),
+    }));
+  }
 
   async function confirm() {
     setSubmitting(true);
     setError('');
     try {
+      const project_choice = projSel.startsWith('existing:')
+        ? { mode: 'existing' as const, project_id: Number(projSel.split(':')[1]) }
+        : projSel === 'new' && newName.trim()
+          ? { mode: 'new' as const, name: newName.trim() }
+          : null;
       const res = await fetch('/api/parse/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_text: rawText, parsed, project_choice: choice }),
+        body: JSON.stringify({ raw_text: rawText, parsed: edited, project_choice }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '写入失败');
@@ -57,110 +79,166 @@ export default function ConfirmCard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 backdrop-blur-[2px] p-4">
-      <div className="line-card w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 shadow-xl shadow-kimi-100">
-        <div className="flex items-center gap-2 mb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4">
+      <div className="panel w-full max-w-xl max-h-[88vh] overflow-y-auto p-5 shadow-2xl shadow-kimi-500/10 !border-kimi-200">
+        <div className="flex items-center gap-2 mb-1">
           <span className="text-[10px] font-mono bg-kimi-500 text-white rounded px-1.5 py-0.5 tracking-wider">
-            {INTENT_LABEL[parsed.intent] ?? parsed.intent}
+            {INTENT_LABEL[edited.intent] ?? edited.intent}
           </span>
-          <p className="text-xs text-ink-faint truncate">「{rawText}」</p>
+          <span className="text-[10px] font-mono text-ink-faint">确认前可直接修改任何字段</span>
         </div>
+        <p className="text-xs text-ink-soft mb-4">「{rawText}」</p>
 
-        {/* 项目归属 */}
-        <div className="mb-3">
-          <p className="text-[11px] text-ink-faint font-mono mb-1">项目归属</p>
-          {parsed.project.name ? (
-            <p className="text-sm">
-              <span className="font-medium">{parsed.project.name}</span>
-              {parsed.project.is_new && (
-                <span className="text-[10px] text-amber-600 border border-amber-300 rounded px-1 ml-1.5">新项目</span>
-              )}
-              <span className="text-[10px] font-mono text-ink-faint ml-1.5">
-                置信度 {Math.round(parsed.project.confidence * 100)}%
-              </span>
-            </p>
-          ) : (
-            <p className="text-sm text-ink-faint">未识别</p>
-          )}
-        </div>
-
-        {/* 任务列表 */}
-        {parsed.tasks.length > 0 && (
-          <div className="mb-3">
-            <p className="text-[11px] text-ink-faint font-mono mb-1">任务（{parsed.tasks.length}）</p>
-            <div className="space-y-1.5">
-              {parsed.tasks.map((t, i) => (
-                <div key={i} className="border border-line rounded-lg px-3 py-2 text-sm">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-medium">{t.name || '（未命名）'}</span>
-                    {t.matched_existing ? (
-                      <span className="text-[10px] text-emerald-600 border border-emerald-300 rounded px-1">已有任务</span>
-                    ) : (
-                      <span className="text-[10px] text-kimi-600 border border-kimi-200 rounded px-1">新任务</span>
-                    )}
-                    {t.is_plan_item && (
-                      <span className="text-[10px] font-mono text-kimi-500 border border-kimi-200 rounded px-1">计划任务</span>
-                    )}
-                  </div>
-                  <div className="flex gap-3 mt-1 text-[11px] font-mono text-ink-soft">
-                    {t.status && <span>状态→{t.status}</span>}
-                    {t.deadline && <span>截止 {t.deadline}</span>}
-                    {t.planned_date && <span>计划 {t.planned_date}</span>}
-                    {t.parent_task_name && <span>属于「{t.parent_task_name}」</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 日志信息 */}
-        {(parsed.log.content || parsed.log.blocker || parsed.log.deliverable) && (
-          <div className="mb-3 text-sm">
-            <p className="text-[11px] text-ink-faint font-mono mb-1">进展记录</p>
-            {parsed.log.content && <p className="text-ink-soft">{parsed.log.content}</p>}
-            <div className="flex gap-3 mt-0.5 text-[11px] font-mono text-ink-soft">
-              {parsed.log.duration_hours !== null && <span>耗时 {parsed.log.duration_hours}h</span>}
-              {parsed.log.deliverable && <span>交付物：{parsed.log.deliverable}</span>}
-              {parsed.log.blocker && <span className="text-red-500">卡点：{parsed.log.blocker}</span>}
-            </div>
-          </div>
-        )}
-
-        {/* 反问环节（需求文档 4.4：弹 clarify_question 供点选） */}
+        {/* 反问提示 */}
         {needChoice && (
-          <div className="mb-3 border border-amber-300 bg-amber-50/60 rounded-lg p-3">
-            <p className="text-sm font-medium text-amber-800 mb-2">❓ {parsed.clarify_question || '这句话归属哪个项目？'}</p>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {projects.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setChoice({ mode: 'existing', project_id: p.id })}
-                  className={`text-xs border rounded-full px-2.5 py-1 transition-colors ${
-                    choice?.mode === 'existing' && choice.project_id === p.id
-                      ? 'bg-kimi-500 text-white border-kimi-500'
-                      : 'border-line bg-white hover:border-kimi-400'
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-1.5">
-              <input
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  setChoice({ mode: 'new', name: e.target.value });
-                }}
-                placeholder="或者：新建项目名称"
-                className="flex-1 text-xs border border-line rounded-lg px-2.5 py-1.5 outline-none focus:border-kimi-500 bg-white"
-              />
-            </div>
+          <div className="mb-4 border border-amber-500/50 bg-amber-500/10 rounded-lg px-3 py-2">
+            <p className="text-xs text-amber-300">❓ {edited.clarify_question || '请确认归属'}</p>
           </div>
         )}
 
-        {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+        {/* 项目归属（可改） */}
+        <div className="mb-4">
+          <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">
+            项目归属{parsed.project.name && `（识别：${parsed.project.name}${parsed.project.is_new ? '·新' : ''} ${Math.round(parsed.project.confidence * 100)}%）`}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setProjSel(`existing:${p.id}`)}
+                className={`text-xs border rounded-full px-2.5 py-1 transition-colors ${
+                  projSel === `existing:${p.id}`
+                    ? 'bg-kimi-500 text-white border-kimi-500'
+                    : 'border-line hover:border-kimi-400'
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+            <button
+              onClick={() => setProjSel('new')}
+              className={`text-xs border rounded-full px-2.5 py-1 transition-colors ${
+                projSel === 'new' ? 'bg-kimi-500 text-white border-kimi-500' : 'border-dashed border-line hover:border-kimi-400'
+              }`}
+            >
+              ＋新项目
+            </button>
+          </div>
+          {projSel === 'new' && (
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="新项目名称"
+              className="input-dark mt-2 w-full text-xs px-2.5 py-1.5"
+            />
+          )}
+          {projMissing && <p className="text-[10px] text-amber-400 mt-1">↑ 建任务需要选定一个项目</p>}
+        </div>
+
+        {/* 任务列表（可编辑） */}
+        {hasTasks && (
+          <div className="mb-4 space-y-2">
+            <p className="text-[10px] text-ink-faint font-mono tracking-wider">任务（{edited.tasks.length}）</p>
+            <p className="text-[10px] text-ink-faint leading-snug">
+              对外截止 = 承诺交给别人的那天；我的计划 = 自己打算哪天做（一句话里两个日期都有时会自动拆成主任务+计划任务两条）
+            </p>
+            {edited.tasks.map((t, i) => (
+              <div key={i} className="border border-line rounded-lg p-2.5 bg-card">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={t.name}
+                    onChange={(e) => updateTask(i, { name: e.target.value })}
+                    className="input-dark flex-1 text-[13px] px-2 py-1 min-w-0"
+                    placeholder="任务名"
+                  />
+                  {t.is_plan_item && (
+                    <span className="text-[9px] font-mono text-kimi-600 border border-kimi-200 rounded px-1 leading-4 shrink-0">计划</span>
+                  )}
+                  <button
+                    onClick={() => setEdited((e) => ({ ...e, tasks: e.tasks.filter((_, idx) => idx !== i) }))}
+                    className="text-ink-faint hover:text-red-400 text-sm px-1 shrink-0"
+                    title="移除这条"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] font-mono">
+                  <select
+                    value={t.status || '待启动'}
+                    onChange={(e) => updateTask(i, { status: e.target.value })}
+                    className="input-dark px-1.5 py-1 text-[11px]"
+                  >
+                    {TASK_STATUSES.filter((s) => s !== '归档').map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-1 text-ink-soft" title="对外承诺交付的那一天（要交给别人/对客户）">
+                    对外截止
+                    <input
+                      type="date"
+                      value={t.deadline ?? ''}
+                      onChange={(e) => updateTask(i, { deadline: e.target.value || null })}
+                      className="input-dark px-1.5 py-1 text-[11px]"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-ink-soft" title="我自己打算哪天去做（自我提醒，逾期不进对外承诺）">
+                    我的计划
+                    <input
+                      type="date"
+                      value={t.planned_date ?? ''}
+                      onChange={(e) => updateTask(i, { planned_date: e.target.value || null })}
+                      className="input-dark px-1.5 py-1 text-[11px]"
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 日志（可编辑） */}
+        <div className="mb-4">
+          <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">进展记录（无内容则只建/改任务）</p>
+          <textarea
+            value={edited.log.content}
+            onChange={(e) => setEdited((p) => ({ ...p, log: { ...p.log, content: e.target.value } }))}
+            placeholder="记录内容…"
+            rows={2}
+            className="input-dark w-full text-xs px-2.5 py-1.5 resize-none"
+          />
+          <div className="flex flex-wrap gap-2 mt-2 text-[11px] font-mono">
+            <label className="flex items-center gap-1 text-ink-soft">
+              耗时h
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                value={edited.log.duration_hours ?? ''}
+                onChange={(e) =>
+                  setEdited((p) => ({
+                    ...p,
+                    log: { ...p.log, duration_hours: e.target.value === '' ? null : Number(e.target.value) },
+                  }))
+                }
+                className="input-dark w-16 px-1.5 py-1"
+              />
+            </label>
+            <input
+              value={edited.log.deliverable}
+              onChange={(e) => setEdited((p) => ({ ...p, log: { ...p.log, deliverable: e.target.value } }))}
+              placeholder="交付物（文件名/链接）"
+              className="input-dark flex-1 min-w-32 px-2 py-1"
+            />
+            <input
+              value={edited.log.blocker}
+              onChange={(e) => setEdited((p) => ({ ...p, log: { ...p.log, blocker: e.target.value } }))}
+              placeholder="卡点"
+              className="input-dark flex-1 min-w-24 px-2 py-1"
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
 
         <div className="flex gap-2 justify-end">
           <button
@@ -171,16 +249,13 @@ export default function ConfirmCard({
           </button>
           <button
             onClick={confirm}
-            disabled={submitting || (needChoice && !choice)}
-            className="text-sm bg-kimi-500 hover:bg-kimi-600 text-white rounded-lg px-4 py-2 font-medium transition-colors disabled:opacity-40 flex items-center gap-2"
+            disabled={submitting || projMissing || (projSel === 'new' && !newName.trim())}
+            className="text-sm bg-kimi-500 hover:bg-kimi-400 text-white rounded-lg px-4 py-2 font-medium transition-colors disabled:opacity-40 flex items-center gap-2"
           >
             {submitting && <PixelLoader />}
             确认入库
           </button>
         </div>
-        {needChoice && !choice && (
-          <p className="text-[10px] text-ink-faint text-right mt-1">先回答上面的问题，再确认</p>
-        )}
       </div>
     </div>
   );

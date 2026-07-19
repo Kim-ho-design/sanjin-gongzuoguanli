@@ -76,8 +76,8 @@ export default function TaskDetail({
 
   if (!detail) {
     return (
-      <div className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-[2px]" onClick={onClose}>
-        <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-line p-5">
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
+        <div className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line p-5">
           <p className="text-sm text-ink-faint">加载中…</p>
         </div>
       </div>
@@ -87,9 +87,9 @@ export default function TaskDetail({
   const { task, logs, deliverables, sub_tasks } = detail;
 
   return (
-    <div className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-line overflow-y-auto p-5"
+        className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
@@ -104,18 +104,19 @@ export default function TaskDetail({
 
         {/* 日期信息 */}
         <div className="flex gap-4 text-xs font-mono text-ink-soft mb-4 border border-line rounded-lg p-2.5">
-          <span>截止：{task.deadline ?? '—'}</span>
-          <span>计划：{task.planned_date ?? '—'}</span>
-          {task.is_plan_item === 1 && <span className="text-kimi-500">计划任务</span>}
+          <span title="承诺交给别人的那天">对外截止：{task.deadline ?? '—'}</span>
+          <span title="自己打算哪天做">我的计划：{task.planned_date ?? '—'}</span>
+          {task.is_plan_item === 1 && <span className="text-kimi-600">计划任务</span>}
         </div>
 
         {/* 状态按钮（拖拽之外的第二通道） */}
-        <p className="text-[11px] text-ink-faint font-mono mb-1.5">状态</p>
-        <div className="flex flex-wrap gap-1.5 mb-5">
+        <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">状态 STATUS</p>
+        <div className="flex flex-wrap gap-1.5 mb-2">
           {TASK_STATUSES.map((s: TaskStatus) => (
             <button
               key={s}
               onClick={() => patch({ status: s })}
+              title={s === '归档' ? '归档 = 彻底闭环（验收通过）或不做了，从日常视野收起，数据保留' : undefined}
               className={`text-xs border rounded-full px-2.5 py-1 transition-colors ${
                 task.status === s
                   ? 'bg-kimi-500 text-white border-kimi-500'
@@ -126,11 +127,14 @@ export default function TaskDetail({
             </button>
           ))}
         </div>
+        <p className="text-[10px] text-ink-faint mb-5">
+          已完成=验收通过；归档=彻底闭环或不做了，从看板收起只留档
+        </p>
 
         {/* 子任务（拆任务的计划项） */}
         {sub_tasks.length > 0 && (
           <div className="mb-5">
-            <p className="text-[11px] text-ink-faint font-mono mb-1.5">关联计划任务</p>
+            <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">关联计划任务</p>
             {sub_tasks.map((st) => (
               <p key={st.id} className="text-xs text-ink-soft py-0.5">
                 · {st.name}（{st.status}{st.planned_date ? `，计划 ${st.planned_date}` : ''}）
@@ -140,18 +144,18 @@ export default function TaskDetail({
         )}
 
         {/* 时间线 */}
-        <p className="text-[11px] text-ink-faint font-mono mb-1.5">时间线（{logs.length}）</p>
+        <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">时间线 TIMELINE（{logs.length}）</p>
         <div className="border-l-2 border-kimi-100 pl-3 mb-3 space-y-3">
           {logs.length === 0 && <p className="text-xs text-ink-faint">还没有记录</p>}
           {logs.map((l) => (
             <div key={l.id} className="relative">
-              <span className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-[2px] bg-kimi-300" />
+              <span className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-[2px] bg-kimi-500" />
               <p className="text-[10px] font-mono text-ink-faint">{l.created_at.slice(0, 16)}</p>
               <p className="text-[13px] text-ink leading-snug">{l.raw_text}</p>
               {(l.duration_hours || l.blocker) && (
                 <p className="text-[10px] font-mono mt-0.5">
                   {l.duration_hours ? <span className="text-ink-soft">{l.duration_hours}h </span> : null}
-                  {l.blocker ? <span className="text-red-500">卡点：{l.blocker}</span> : null}
+                  {l.blocker ? <span className="text-red-400">卡点：{l.blocker}</span> : null}
                 </p>
               )}
             </div>
@@ -165,13 +169,13 @@ export default function TaskDetail({
             onChange={(e) => setLogText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addLog()}
             placeholder="补一条记录…"
-            className="flex-1 text-xs border border-line rounded-lg px-2.5 py-1.5 outline-none focus:border-kimi-500"
+            className="input-dark flex-1 text-xs px-2.5 py-1.5"
           />
-          <button onClick={addLog} className="text-xs bg-kimi-500 text-white rounded-lg px-3 hover:bg-kimi-600">记</button>
+          <button onClick={addLog} className="text-xs bg-kimi-500 text-white rounded-lg px-3 hover:bg-kimi-400">记</button>
         </div>
 
         {/* 交付物 */}
-        <p className="text-[11px] text-ink-faint font-mono mb-1.5">交付物（{deliverables.length}）</p>
+        <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">交付物（{deliverables.length}）</p>
         <div className="mb-2 space-y-1">
           {deliverables.map((d) => (
             <p key={d.id} className="text-xs">
@@ -191,12 +195,12 @@ export default function TaskDetail({
             onChange={(e) => setDeliverableName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addDeliverable()}
             placeholder="登记交付物名称…"
-            className="flex-1 text-xs border border-line rounded-lg px-2.5 py-1.5 outline-none focus:border-kimi-500"
+            className="input-dark flex-1 text-xs px-2.5 py-1.5"
           />
           <button onClick={addDeliverable} className="text-xs border border-line rounded-lg px-3 hover:border-kimi-400">+</button>
         </div>
 
-        <button onClick={remove} className="text-xs text-red-400 hover:text-red-600">
+        <button onClick={remove} className="text-xs text-red-400/70 hover:text-red-400">
           删除任务
         </button>
       </div>

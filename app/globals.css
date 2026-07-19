@@ -3,18 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --background: #f6f8ff;
+  --background: #f5f8ff;
   --foreground: #1a1d2e;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* 细线条网格底纹：极简 + 线条感 */
-  background-image:
-    linear-gradient(to right, rgba(77, 107, 254, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(77, 107, 254, 0.05) 1px, transparent 1px);
-  background-size: 28px 28px;
+}
+
+/* ASCII 字符纹理背景（致敬 Kimi 海报）：极淡蓝色字符网格 */
+.ascii-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.05'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.045'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.045'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.04'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.045'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%234D6BFE' fill-opacity='0.05'%3EK%3C/text%3E%3C/svg%3E");
+}
+
+/* 面板与卡片：白色 + 细线条描边 */
+.panel {
+  background: #ffffff;
+  border: 1px solid #e3e9fb;
+  border-radius: 10px;
+}
+.line-card {
+  background: #ffffff;
+  border: 1px solid #e3e9fb;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.line-card:hover {
+  border-color: #a5b4fc;
 }
 
 /* 像素风渲染：放大时保持硬边 */
@@ -22,7 +38,6 @@ body {
   image-rendering: pixelated;
 }
 
-/* 像素方块装饰 */
 @keyframes pixel-blink {
   0%, 60% { opacity: 1; }
   61%, 100% { opacity: 0.25; }
@@ -31,15 +46,13 @@ body {
   animation: pixel-blink 1.2s steps(1) infinite;
 }
 
-/* 细线条卡片（line-based，不用厚重阴影） */
-.line-card {
-  background: #ffffff;
-  border: 1px solid #e3e9fb;
-  border-radius: 10px;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+/* LED 呼吸点（列状态灯） */
+@keyframes led-glow {
+  0%, 100% { box-shadow: 0 0 2px 0px currentColor; }
+  50% { box-shadow: 0 0 6px 2px currentColor; }
 }
-.line-card:hover {
-  border-color: #c7d2fe;
+.led-glow {
+  animation: led-glow 2.4s ease-in-out infinite;
 }
 
 /* 自定义滚动条：细线条 */
@@ -56,4 +69,20 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #4d6bfe;
+}
+
+/* 输入控件统一样式（类名保留 input-dark，样式为亮色） */
+.input-dark {
+  background: #f8faff;
+  border: 1px solid #e3e9fb;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  color: #1a1d2e;
+}
+.input-dark:focus {
+  border-color: #4d6bfe;
+}
+.input-dark::placeholder {
+  color: #9aa3c0;
 }

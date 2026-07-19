@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "工作OS · 个人工作管理系统",
+  title: "三金打工清单",
   description: "计划—执行—记录—周报 闭环的个人工作管理系统",
 };
 

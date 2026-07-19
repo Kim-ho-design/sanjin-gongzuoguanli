@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PixelLogo } from '@/components/Pixel';
+import { AvatarLogo } from '@/components/Pixel';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
@@ -28,13 +28,13 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={submit} className="line-card p-8 w-full max-w-sm flex flex-col gap-5">
+    <main className="min-h-screen ascii-bg flex items-center justify-center p-6">
+      <form onSubmit={submit} className="panel p-8 w-full max-w-sm flex flex-col gap-5 !border-kimi-200">
         <div className="flex items-center gap-3">
-          <PixelLogo size={32} />
+          <AvatarLogo size={40} />
           <div>
-            <h1 className="text-lg font-bold tracking-wide">工作OS</h1>
-            <p className="text-xs text-ink-faint font-mono">WORK OS · LOGIN</p>
+            <h1 className="text-lg font-bold tracking-wide">三金打工清单</h1>
+            <p className="text-[10px] text-ink-faint font-mono tracking-[0.25em]">SANJIN · WORK LIST</p>
           </div>
         </div>
         <input
@@ -43,13 +43,13 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="输入访问口令"
           autoFocus
-          className="w-full border border-line rounded-lg px-4 py-2.5 text-sm outline-none focus:border-kimi-500 transition-colors bg-white"
+          className="input-dark w-full px-4 py-2.5 text-sm"
         />
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p className="text-xs text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={loading || !password}
-          className="w-full bg-kimi-500 hover:bg-kimi-600 text-white rounded-lg py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
+          className="w-full bg-kimi-500 hover:bg-kimi-400 text-white rounded-lg py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
         >
           {loading ? '验证中…' : '进入'}
         </button>
