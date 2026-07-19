@@ -44,3 +44,11 @@ export function inRange(dateStr: string | null, start: string, end: string): boo
   const day = dateStr.slice(0, 10);
   return day >= start && day <= end;
 }
+
+const WEEKDAYS_CN = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const;
+
+/** YYYY-MM-DD → 周X（本地时区） */
+export function weekdayCn(dateStr: string): string {
+  const d = new Date(`${dateStr.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? '' : WEEKDAYS_CN[d.getDay()];
+}

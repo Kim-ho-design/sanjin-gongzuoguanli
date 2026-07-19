@@ -12,7 +12,7 @@ import { PixelEmpty } from './Pixel';
 const COLUMN_THEME: Record<TaskStatus, { dot: string; glow: boolean; hint: string }> = {
   待办事项: { dot: '#22B8CF', glow: false, hint: '一次性小事' },
   待启动: { dot: '#64748B', glow: false, hint: '排队中' },
-  进行中: { dot: '#002FA7', glow: true, hint: '正在推进' },
+  进行中: { dot: '#3375F6', glow: true, hint: '正在推进' },
   待确认审核: { dot: '#F5A623', glow: true, hint: '交付待验收' },
   已完成: { dot: '#34D399', glow: false, hint: '验收通过' },
 };

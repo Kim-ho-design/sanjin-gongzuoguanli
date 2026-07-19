@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 鸿蒙黑体 HarmonyOS Sans SC：正文 Regular / 强调 Medium / 标题 Bold */
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('/fonts/HarmonyOS_Sans_SC_Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('/fonts/HarmonyOS_Sans_SC_Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('/fonts/HarmonyOS_Sans_SC_Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #f5f8ff;
   --foreground: #1a1d2e;
@@ -10,11 +33,12 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
 /* ASCII 字符纹理背景（致敬 Kimi 海报）：极淡蓝色字符网格 */
 .ascii-bg {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.05'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.045'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.045'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.04'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.045'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%23002FA7' fill-opacity='0.05'%3EK%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.045'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.045'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.04'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.045'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3EK%3C/text%3E%3C/svg%3E");
 }
 
 /* 面板与卡片：白色 + 细线条描边 */
@@ -68,7 +92,7 @@ body {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #002fa7;
+  background: #3375f6;
 }
 
 /* 输入控件统一样式（类名保留 input-dark，样式为亮色） */
@@ -81,7 +105,7 @@ body {
   color: #1a1d2e;
 }
 .input-dark:focus {
-  border-color: #002fa7;
+  border-color: #3375f6;
 }
 .input-dark::placeholder {
   color: #9aa3c0;

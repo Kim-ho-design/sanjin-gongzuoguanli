@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ParseResult, Project } from '@/lib/types';
 import { TASK_STATUSES } from '@/lib/types';
 import type { ApplySummary } from '@/lib/apply';
+import { weekdayCn } from '@/lib/utils';
 import { PixelLoader } from './Pixel';
 
 const INTENT_LABEL: Record<string, string> = {
@@ -40,12 +41,15 @@ export default function ConfirmCard({
   const [newName, setNewName] = useState(parsed.project.is_new ? parsed.project.name : '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // 逐任务项目覆盖：'' = 跟随上方整体项目，'existing:id' = 单独指定
+  const [taskProj, setTaskProj] = useState<Record<number, string>>({});
 
   const needChoice = parsed.needs_confirmation;
   const hasTasks = edited.tasks.length > 0;
   // 需要项目：有任务要建/改。日志挂不上任务时会进待认领区，不强制项目
   const needProject = hasTasks;
-  const projMissing = needProject && !projSel;
+  // 每条任务要么跟随整体项目、要么自己单独指定了项目
+  const projMissing = needProject && !projSel && edited.tasks.some((_, i) => !taskProj[i]);
 
   function updateTask(i: number, patch: Partial<ParseResult['tasks'][number]>) {
     setEdited((e) => ({
@@ -63,10 +67,16 @@ export default function ConfirmCard({
         : projSel === 'new' && newName.trim()
           ? { mode: 'new' as const, name: newName.trim() }
           : null;
+      const task_projects = edited.tasks.map((_, i) => {
+        const sel = taskProj[i] ?? '';
+        return sel.startsWith('existing:')
+          ? { mode: 'existing' as const, project_id: Number(sel.split(':')[1]) }
+          : null;
+      });
       const res = await fetch('/api/parse/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_text: rawText, parsed: edited, project_choice }),
+        body: JSON.stringify({ raw_text: rawText, parsed: edited, project_choice, task_projects }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '写入失败');
@@ -172,6 +182,17 @@ export default function ConfirmCard({
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
+                  <select
+                    value={taskProj[i] ?? ''}
+                    onChange={(e) => setTaskProj((s) => ({ ...s, [i]: e.target.value }))}
+                    title="这条任务的项目归属（默认跟随上方整体项目）"
+                    className="input-dark px-1.5 py-1 text-[11px] max-w-[140px]"
+                  >
+                    <option value="">跟随上方项目</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={`existing:${p.id}`}>{p.name}</option>
+                    ))}
+                  </select>
                   <label className="flex items-center gap-1 text-ink-soft" title="对外承诺交付的那一天（要交给别人/对客户）">
                     对外截止
                     <input
@@ -180,6 +201,7 @@ export default function ConfirmCard({
                       onChange={(e) => updateTask(i, { deadline: e.target.value || null })}
                       className="input-dark px-1.5 py-1 text-[11px]"
                     />
+                    {t.deadline && <span className="text-kimi-600">{weekdayCn(t.deadline)}</span>}
                   </label>
                   <label className="flex items-center gap-1 text-ink-soft" title="我自己打算哪天去做（自我提醒，逾期不进对外承诺）">
                     我的计划
@@ -189,6 +211,7 @@ export default function ConfirmCard({
                       onChange={(e) => updateTask(i, { planned_date: e.target.value || null })}
                       className="input-dark px-1.5 py-1 text-[11px]"
                     />
+                    {t.planned_date && <span className="text-kimi-600">{weekdayCn(t.planned_date)}</span>}
                   </label>
                 </div>
               </div>

@@ -67,6 +67,7 @@ export function applyParseResult(
   rawText: string,
   parsed: ParseResult,
   projectChoice?: { mode: 'existing'; project_id: number } | { mode: 'new'; name: string } | null,
+  taskProjects?: ({ mode: 'existing'; project_id: number } | null)[],
 ): ApplySummary {
   const db = getDb();
   const summary: ApplySummary = { actions: [], task_ids: [], unclaimed_id: null };
@@ -100,8 +101,16 @@ export function applyParseResult(
   const createdByName = new Map<string, number>();
   const resolvedTaskIds: { pt: ParsedTask; id: number; existed: boolean }[] = [];
 
-  for (const pt of parsed.tasks) {
+  for (let ti = 0; ti < parsed.tasks.length; ti++) {
+    const pt = parsed.tasks[ti];
     if (!pt.name) continue;
+    // 逐任务项目覆盖：这条任务单独指定了项目就用它，否则跟随整体项目
+    const override = taskProjects?.[ti];
+    let taskProjectId = override?.mode === 'existing' ? override.project_id : projectId;
+    if (override?.mode === 'existing') {
+      const ok = db.prepare('SELECT id FROM projects WHERE id = ?').get(override.project_id);
+      if (!ok) taskProjectId = projectId; // 非法 id 回退整体项目，防 FK 报错
+    }
     if (pt.matched_existing) {
       const existing = matchTask(pt.name);
       if (existing) {
@@ -112,7 +121,7 @@ export function applyParseResult(
       }
       // 声称匹配但库里没有 → 当成新任务（落库时如实记录，不编造）
     }
-    if (projectId === null) {
+    if (taskProjectId === null) {
       // 挂不上项目：整条进待认领区（需求文档第 6 节）
       const r = db
         .prepare('INSERT INTO unclaimed (raw_text, parsed) VALUES (?, ?)')
@@ -121,7 +130,7 @@ export function applyParseResult(
       summary.actions.push('无法确定项目归属，已放入待认领区');
       return summary;
     }
-    const id = createTask(pt, projectId, null);
+    const id = createTask(pt, taskProjectId, null);
     resolvedTaskIds.push({ pt, id, existed: false });
     // 同名任务保留先建的（主任务）映射，避免计划任务覆盖导致父子关联指向自己
     if (!createdByName.has(norm(pt.name))) createdByName.set(norm(pt.name), id);

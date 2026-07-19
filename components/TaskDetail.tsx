@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TASK_STATUSES } from '@/lib/types';
-import type { Log, Deliverable, Task, TaskStatus } from '@/lib/types';
+import type { Log, Deliverable, Task, TaskStatus, Project } from '@/lib/types';
 
 interface Detail {
   task: Task;
@@ -23,14 +23,23 @@ export default function TaskDetail({
   const [detail, setDetail] = useState<Detail | null>(null);
   const [logText, setLogText] = useState('');
   const [deliverableName, setDeliverableName] = useState('');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [newProjMode, setNewProjMode] = useState(false);
+  const [newProjName, setNewProjName] = useState('');
 
   async function load() {
     const res = await fetch(`/api/tasks/${taskId}`);
     if (res.ok) setDetail(await res.json());
   }
 
+  async function loadProjects() {
+    const res = await fetch('/api/projects');
+    if (res.ok) setProjects((await res.json()).projects ?? []);
+  }
+
   useEffect(() => {
     load();
+    loadProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
@@ -42,6 +51,32 @@ export default function TaskDetail({
     });
     await load();
     onChanged();
+  }
+
+  async function changeProject(v: string) {
+    if (v === '__new') {
+      setNewProjMode(true);
+      return;
+    }
+    setNewProjMode(false);
+    const pid = Number(v);
+    if (pid && pid !== detail?.task.project_id) await patch({ project_id: pid });
+  }
+
+  async function createProjectAndAssign() {
+    const name = newProjName.trim();
+    if (!name) return;
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const d = await res.json();
+    if (!res.ok) return;
+    await loadProjects();
+    await patch({ project_id: d.id });
+    setNewProjName('');
+    setNewProjMode(false);
   }
 
   async function addLog() {
@@ -96,7 +131,43 @@ export default function TaskDetail({
         <div className="flex items-start gap-2 mb-4">
           <span className="w-2.5 h-2.5 rounded-[2px] mt-2 shrink-0" style={{ backgroundColor: task.project_color }} />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-ink-faint">{task.project_name}</p>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <select
+                key={`proj-${task.id}-${task.project_id}`}
+                value={newProjMode ? '__new' : String(task.project_id)}
+                onChange={(e) => changeProject(e.target.value)}
+                title="项目归属（可改）"
+                className="text-[11px] text-ink-faint bg-transparent outline-none cursor-pointer hover:text-kimi-600 max-w-[180px]"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+                <option value="__new">＋ 新项目…</option>
+              </select>
+            </div>
+            {newProjMode && (
+              <div className="flex items-center gap-1 mb-1">
+                <input
+                  autoFocus
+                  value={newProjName}
+                  onChange={(e) => setNewProjName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') createProjectAndAssign();
+                    if (e.key === 'Escape') setNewProjMode(false);
+                  }}
+                  placeholder="新项目名称，回车创建并挂入"
+                  className="input-dark text-[11px] px-2 py-1 flex-1 min-w-0"
+                />
+                <button
+                  onClick={createProjectAndAssign}
+                  className="text-[11px] bg-kimi-500 text-white rounded-lg px-2 py-1 hover:bg-kimi-400"
+                >
+                  建
+                </button>
+              </div>
+            )}
             <input
               key={task.id}
               defaultValue={task.name}

@@ -7,7 +7,7 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'work-os.db');
 
 const PROJECT_COLORS = [
-  '#002FA7', // 克莱因蓝
+  '#3375F6', // 品牌蓝（v6 起，原克莱因蓝 #002FA7）
   '#22B8CF',
   '#845EF7',
   '#F783AC',
@@ -28,7 +28,7 @@ function createDb(): Database.Database {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       status TEXT NOT NULL DEFAULT '进行中',
-      color TEXT NOT NULL DEFAULT '#4D6BFE',
+      color TEXT NOT NULL DEFAULT '#3375F6',
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
     CREATE TABLE IF NOT EXISTS tasks (
@@ -91,6 +91,9 @@ function createDb(): Database.Database {
   ).run();
   db.prepare(`DELETE FROM tasks WHERE is_plan_item = 1 AND parent_task_id IS NOT NULL`).run();
   db.prepare(`UPDATE tasks SET is_plan_item = 0 WHERE is_plan_item = 1`).run(); // 无主的计划任务转普通任务
+
+  // v6 迁移：品牌蓝 #002FA7 → #3375F6，存量项目色统一换新
+  db.prepare(`UPDATE projects SET color = '#3375F6' WHERE color IN ('#002FA7', '#4D6BFE', '#4D7CFE')`).run();
 
   // 首次启动：写入预置项目
   const count = (db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }).c;

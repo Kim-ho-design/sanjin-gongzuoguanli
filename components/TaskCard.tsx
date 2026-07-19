@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import type { Task } from '@/lib/types';
-import { isOverdue } from '@/lib/utils';
+import { isOverdue, weekdayCn } from '@/lib/utils';
 import { PixelStar } from './Pixel';
 
 export default function TaskCard({
@@ -44,7 +44,7 @@ export default function TaskCard({
       <div className="flex items-center gap-1.5 mb-1.5">
         <span
           className="w-2 h-2 rounded-[2px] shrink-0"
-          style={{ backgroundColor: task.project_color || '#4D7CFE' }}
+          style={{ backgroundColor: task.project_color || '#3375F6' }}
         />
         <span className="text-[10px] text-ink-faint truncate">{task.project_name}</span>
         {task.is_plan_item === 1 && (
@@ -96,13 +96,13 @@ export default function TaskCard({
       <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
         {task.deadline && (
           <span className={`text-[10px] font-mono ${overdue ? 'text-red-500 font-bold' : 'text-ink-soft'}`}>
-            截止 {task.deadline.slice(5)}
+            截止 {task.deadline.slice(5)} {weekdayCn(task.deadline)}
             {overdue && ' ⚠'}
           </span>
         )}
         {task.planned_date && (
           <span className="text-[10px] font-mono text-kimi-600">
-            计划 {task.planned_date.slice(5)}
+            计划 {task.planned_date.slice(5)} {weekdayCn(task.planned_date)}
           </span>
         )}
         {(task.log_count ?? 0) > 0 && (

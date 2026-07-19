@@ -23,8 +23,8 @@ const GLYPHS: Record<string, string[]> = {
 export function PixelNumber({
   value,
   size = 3,
-  color = '#002FA7',
-  dimColor = '#D6E0F4',
+  color = '#3375F6',
+  dimColor = '#DFEAFD',
 }: {
   value: string;
   size?: number; // 每个点阵点的边长(px)
@@ -96,7 +96,7 @@ export function PixelLogo({ size = 28 }: { size?: number }) {
       {rows.map((row, y) =>
         row.split('').map((cell, x) =>
           cell === '1' ? (
-            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#002FA7" />
+            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#3375F6" />
           ) : null,
         ),
       )}

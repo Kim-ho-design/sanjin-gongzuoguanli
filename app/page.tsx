@@ -29,6 +29,8 @@ export default function HomePage() {
   const [showDrift, setShowDrift] = useState(false);
   const [showToday, setShowToday] = useState(false);
   const [toast, setToast] = useState('');
+  const [addingProject, setAddingProject] = useState(false);
+  const [newProjName, setNewProjName] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +96,39 @@ export default function HomePage() {
     load();
   }
 
+  async function addProject() {
+    const name = newProjName.trim();
+    if (!name) return;
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const d = await res.json();
+    if (!res.ok) {
+      showToast(d.error || '新建项目失败');
+      return;
+    }
+    setNewProjName('');
+    setAddingProject(false);
+    showToast(`项目「${name}」已创建`);
+    load();
+  }
+
+  async function removeProject(p: Project) {
+    const count = data?.tasks.filter((t) => t.project_id === p.id).length ?? 0;
+    if (
+      !confirm(
+        `删除项目「${p.name}」？\n项目下的 ${count} 个任务不会丢失，会移到待认领区，之后可恢复到其他项目。`,
+      )
+    )
+      return;
+    await fetch(`/api/projects/${p.id}`, { method: 'DELETE' });
+    if (filterProject === p.id) setFilterProject(0);
+    showToast(`项目「${p.name}」已删除，${count} 个任务已进入待认领区`);
+    load();
+  }
+
   const filteredTasks =
     data?.tasks.filter((t) => filterProject === 0 || t.project_id === filterProject) ?? [];
 
@@ -142,19 +177,60 @@ export default function HomePage() {
               全部
             </button>
             {data.projects.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setFilterProject(p.id)}
-                className={`text-xs border rounded-full px-3 py-1 transition-colors flex items-center gap-1.5 ${
-                  filterProject === p.id
-                    ? 'bg-kimi-500 text-white border-kimi-500'
-                    : 'border-line hover:border-kimi-400'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-[2px]" style={{ backgroundColor: p.color }} />
-                {p.name}
-              </button>
+              <span key={p.id} className="relative group">
+                <button
+                  onClick={() => setFilterProject(p.id)}
+                  className={`text-xs border rounded-full px-3 py-1 transition-colors flex items-center gap-1.5 ${
+                    filterProject === p.id
+                      ? 'bg-kimi-500 text-white border-kimi-500'
+                      : 'border-line hover:border-kimi-400'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-[2px]" style={{ backgroundColor: p.color }} />
+                  {p.name}
+                </button>
+                <button
+                  onClick={() => removeProject(p)}
+                  title="删除项目（任务移入待认领区）"
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-line text-[10px] leading-none text-ink-faint hover:text-red-500 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  ×
+                </button>
+              </span>
             ))}
+            {/* 新增项目 */}
+            {addingProject ? (
+              <span className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={newProjName}
+                  onChange={(e) => setNewProjName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') addProject();
+                    if (e.key === 'Escape') {
+                      setAddingProject(false);
+                      setNewProjName('');
+                    }
+                  }}
+                  placeholder="新项目名称，回车创建"
+                  className="input-dark text-xs px-2.5 py-1 w-40"
+                />
+                <button
+                  onClick={addProject}
+                  className="text-xs bg-kimi-500 text-white rounded-full px-2.5 py-1 hover:bg-kimi-400"
+                >
+                  建
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setAddingProject(true)}
+                title="新增项目"
+                className="text-xs border border-dashed border-line rounded-full px-3 py-1 text-ink-faint hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+              >
+                ＋ 项目
+              </button>
+            )}
           </div>
         )}
 
@@ -201,6 +277,7 @@ export default function HomePage() {
         <UnclaimedPanel
           unclaimed={data.unclaimed}
           tasks={data.tasks}
+          projects={data.projects}
           onClose={() => setShowDrift(false)}
           onChanged={load}
         />
