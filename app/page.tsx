@@ -142,8 +142,14 @@ export default function HomePage() {
           PLAN · DO · LOG · REVIEW
         </span>
         <Link
-          href="/calendar"
+          href="/week"
           className="ml-auto text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+        >
+          🗓 周视图
+        </Link>
+        <Link
+          href="/calendar"
+          className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
         >
           📅 月视图
         </Link>
