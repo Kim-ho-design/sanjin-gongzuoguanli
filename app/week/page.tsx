@@ -7,16 +7,17 @@ import { weekRange, addDays, todayStr, weekdayCn } from '@/lib/utils';
 import { AvatarLogo } from '@/components/Pixel';
 import TaskDetail from '@/components/TaskDetail';
 
-/** 某天的一个条目：同一任务同一天的 计划/截止 合并成一张卡片，用标签区分 */
+/** 某天的一个条目：父任务按 deadline 落入（截止），子任务按 planned_date 落入（计划） */
 interface WeekItem {
   task: Task;
-  isPlan: boolean; // planned_date 落在这天
-  isDue: boolean; // deadline 落在这天
+  isPlan: boolean; // 子任务 planned_date 落在这天
+  isDue: boolean; // 父任务 deadline 落在这天
 }
 
 export default function WeekPage() {
   const [anchor, setAnchor] = useState(todayStr()); //  displayed week 内的任意一天
   const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [subtasks, setSubtasks] = useState<Task[]>([]);
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -25,7 +26,11 @@ export default function WeekPage() {
       window.location.href = '/login';
       return;
     }
-    if (res.ok) setTasks((await res.json()).tasks ?? []);
+    if (res.ok) {
+      const data = await res.json();
+      setTasks(data.tasks ?? []);
+      setSubtasks(data.subtasks ?? []);
+    }
   }, []);
 
   useEffect(() => {
@@ -36,15 +41,17 @@ export default function WeekPage() {
   const { start, end } = weekRange(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
-  // 按天归组：计划/截止各自落到对应日期，同一天两者都有则合并
+  // 按天归组：父任务只按截止日期落列，子任务按计划日期落列
   const byDay: Record<string, WeekItem[]> = {};
   for (const d of days) byDay[d] = [];
   for (const t of tasks ?? []) {
-    if (t.planned_date && byDay[t.planned_date]) {
-      byDay[t.planned_date].push({ task: t, isPlan: true, isDue: t.deadline === t.planned_date });
-    }
-    if (t.deadline && t.deadline !== t.planned_date && byDay[t.deadline]) {
+    if (t.deadline && byDay[t.deadline]) {
       byDay[t.deadline].push({ task: t, isPlan: false, isDue: true });
+    }
+  }
+  for (const s of subtasks) {
+    if (s.planned_date && byDay[s.planned_date]) {
+      byDay[s.planned_date].push({ task: s, isPlan: true, isDue: false });
     }
   }
   // 截止事项排前面
@@ -121,17 +128,19 @@ export default function WeekPage() {
                       return (
                         <button
                           key={`${task.id}-${isPlan ? 'p' : ''}${isDue ? 'd' : ''}`}
-                          onClick={() => setOpenTaskId(task.id)}
+                          onClick={() => setOpenTaskId(isPlan && task.parent_task_id ? task.parent_task_id : task.id)}
                           className={`line-card w-full text-left p-2 cursor-pointer ${done ? 'opacity-45' : ''}`}
                         >
                           <div className="flex items-center gap-1 mb-1">
                             <span
                               className="w-1.5 h-1.5 rounded-[2px] shrink-0"
-                              style={{ backgroundColor: task.project_color || '#3375F6' }}
+                              style={{ backgroundColor: task.project_color || '#3E81F6' }}
                             />
                             <span className="text-[9px] text-ink-faint truncate">{task.project_name}</span>
                           </div>
-                          <p className={`text-[11px] leading-snug ${done ? 'line-through' : ''}`}>{task.name}</p>
+                          <p className={`text-[11px] leading-snug ${done ? 'line-through' : ''}`}>
+                            {isPlan && task.parent_name ? `${task.parent_name} › ` : ''}{task.name}
+                          </p>
                           <div className="flex flex-wrap items-center gap-1 mt-1">
                             {isPlan && (
                               <span className="text-[9px] font-mono text-kimi-600 border border-kimi-200 rounded px-1 leading-3">

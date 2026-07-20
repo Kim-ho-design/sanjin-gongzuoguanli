@@ -21,10 +21,7 @@ export default function TaskCard({
     data: { task },
   });
 
-  const overdue = isOverdue(task.deadline, task.status) || isOverdue(task.planned_date, task.status);
-  // 既有对外截止又有提前的个人计划 → 需前置完成
-  const needAhead =
-    !!task.deadline && !!task.planned_date && task.planned_date < task.deadline && task.status !== '已完成';
+  const overdue = isOverdue(task.deadline, task.status);
 
   return (
     <div
@@ -44,17 +41,12 @@ export default function TaskCard({
       <div className="flex items-center gap-1.5 mb-1.5">
         <span
           className="w-2 h-2 rounded-[2px] shrink-0"
-          style={{ backgroundColor: task.project_color || '#3375F6' }}
+          style={{ backgroundColor: task.project_color || '#3E81F6' }}
         />
         <span className="text-[10px] text-ink-faint truncate">{task.project_name}</span>
         {task.is_plan_item === 1 && (
           <span className="text-[9px] font-mono text-kimi-600 border border-kimi-200 rounded px-1 leading-3 shrink-0">
             计划
-          </span>
-        )}
-        {needAhead && (
-          <span className="text-[9px] font-mono text-white bg-kimi-500 rounded px-1 leading-3 shrink-0">
-            需前置完成
           </span>
         )}
         <span className="ml-auto flex items-center gap-1 shrink-0">
@@ -100,9 +92,9 @@ export default function TaskCard({
             {overdue && ' ⚠'}
           </span>
         )}
-        {task.planned_date && (
-          <span className="text-[10px] font-mono text-kimi-600">
-            计划 {task.planned_date.slice(5)} {weekdayCn(task.planned_date)}
+        {(task.sub_total ?? 0) > 0 && (
+          <span className="text-[10px] font-mono text-ink-faint">
+            子任务 {task.sub_done}/{task.sub_total}
           </span>
         )}
         {(task.log_count ?? 0) > 0 && (

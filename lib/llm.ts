@@ -16,7 +16,11 @@ const INTENTS: ParseIntent[] = [
 
 export class LlmError extends Error {}
 
-export async function callParse(systemPrompt: string, userInput: string): Promise<ParseResult> {
+/** 共享的 DeepSeek 调用：json=true 时强制 JSON 输出 */
+async function callDeepSeek(
+  messages: { role: 'system' | 'user'; content: string }[],
+  json: boolean,
+): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new LlmError('未配置 DEEPSEEK_API_KEY，请在 .env 中填入后重启服务。');
@@ -31,11 +35,8 @@ export async function callParse(systemPrompt: string, userInput: string): Promis
     body: JSON.stringify({
       model: MODEL,
       temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userInput },
-      ],
+      ...(json ? { response_format: { type: 'json_object' } } : {}),
+      messages,
     }),
   });
 
@@ -45,7 +46,17 @@ export async function callParse(systemPrompt: string, userInput: string): Promis
   }
 
   const data = await res.json();
-  const content: string = data?.choices?.[0]?.message?.content ?? '';
+  return data?.choices?.[0]?.message?.content ?? '';
+}
+
+export async function callParse(systemPrompt: string, userInput: string): Promise<ParseResult> {
+  const content = await callDeepSeek(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userInput },
+    ],
+    true,
+  );
   let raw: unknown;
   try {
     raw = JSON.parse(content);
@@ -53,6 +64,19 @@ export async function callParse(systemPrompt: string, userInput: string): Promis
     throw new LlmError('LLM 返回的不是合法 JSON，请重试。');
   }
   return validateParseResult(raw);
+}
+
+/** 周报生成：返回 markdown 文本（非 JSON 模式） */
+export async function callReport(systemPrompt: string, userPayload: string): Promise<string> {
+  const content = await callDeepSeek(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPayload },
+    ],
+    false,
+  );
+  if (!content.trim()) throw new LlmError('LLM 返回了空周报，请重试。');
+  return content;
 }
 
 /** 宽松校验 + 字段归一：非法字段回退到安全默认值，宁空勿编 */
@@ -71,12 +95,18 @@ export function validateParseResult(raw: unknown): ParseResult {
         matched_existing: t?.matched_existing === true,
         status: TASK_STATUSES.includes(t?.status as never) ? (t.status as string) : '',
         deadline: typeof t?.deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.deadline) ? t.deadline : null,
-        planned_date:
-          typeof t?.planned_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.planned_date)
-            ? t.planned_date
-            : null,
-        is_plan_item: t?.is_plan_item === true,
         parent_task_name: typeof t?.parent_task_name === 'string' ? t.parent_task_name : null,
+        subtasks: Array.isArray(t?.subtasks)
+          ? (t.subtasks as Record<string, unknown>[])
+              .map((s) => ({
+                name: typeof s?.name === 'string' ? s.name : '',
+                planned_date:
+                  typeof s?.planned_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.planned_date)
+                    ? s.planned_date
+                    : null,
+              }))
+              .filter((s) => s.name)
+          : [],
       }))
     : [];
 
@@ -95,9 +125,7 @@ export function validateParseResult(raw: unknown): ParseResult {
     tasks,
     log: {
       content: typeof log.content === 'string' ? log.content : '',
-      duration_hours: typeof log.duration_hours === 'number' ? log.duration_hours : null,
-      deliverable: typeof log.deliverable === 'string' ? log.deliverable : '',
-      blocker: typeof log.blocker === 'string' ? log.blocker : '',
+      date: typeof log.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(log.date) ? log.date : null,
     },
     needs_confirmation: o.needs_confirmation === true,
     clarify_question: typeof o.clarify_question === 'string' ? o.clarify_question : '',
@@ -115,9 +143,10 @@ export function validateParseResult(raw: unknown): ParseResult {
       result.clarify_question = `「${result.project.name}」是新项目，还是属于某个已有项目？`;
     }
   }
-  // 没有识别出任何任务且不是周报/不明意图 → 反问
+  // 没有识别出任何任务且不是周报/不明意图 → 反问（有日志内容除外：确认卡片会兜底生成预填任务）
   if (
     result.tasks.length === 0 &&
+    !result.log.content &&
     result.intent !== 'weekly_review' &&
     result.intent !== 'unclear' &&
     !result.needs_confirmation

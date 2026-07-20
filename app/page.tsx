@@ -16,6 +16,7 @@ import { AvatarLogo } from '@/components/Pixel';
 interface BoardData {
   projects: Project[];
   tasks: Task[];
+  subtasks: Task[];
   unclaimed: Unclaimed[];
   stats: BoardStats;
 }
@@ -246,6 +247,7 @@ export default function HomePage() {
             {showToday && (
               <TodaySidebar
                 tasks={data.tasks}
+                subtasks={data.subtasks ?? []}
                 onOpen={(t) => setOpenTaskId(t.id)}
                 onComplete={(t) => moveTask(t, '已完成')}
                 onClose={() => setShowToday(false)}

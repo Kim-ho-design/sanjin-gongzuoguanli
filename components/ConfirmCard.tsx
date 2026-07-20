@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { ParseResult, Project } from '@/lib/types';
 import { TASK_STATUSES } from '@/lib/types';
 import type { ApplySummary } from '@/lib/apply';
-import { weekdayCn } from '@/lib/utils';
+import { weekdayCn, prefillTaskFromLog } from '@/lib/utils';
 import { PixelLoader } from './Pixel';
 
 const INTENT_LABEL: Record<string, string> = {
@@ -30,7 +30,12 @@ export default function ConfirmCard({
   onCancel: () => void;
 }) {
   // 可编辑副本：入库前所有细节都能改（任务名/日期/状态/项目/日志）
-  const [edited, setEdited] = useState<ParseResult>(() => JSON.parse(JSON.stringify(parsed)));
+  // 兜底：有日志内容但任务列表为空（如补记时 LLM 没给出任务）→ 自动生成一条预填任务
+  const [edited, setEdited] = useState<ParseResult>(() => {
+    const e = JSON.parse(JSON.stringify(parsed)) as ParseResult;
+    if (e.tasks.length === 0 && e.log.content.trim()) e.tasks.push(prefillTaskFromLog(e.log.content));
+    return e;
+  });
   // 项目选择：existing:id | new | null（未选择）
   const matchedProject = projects.find(
     (p) => p.name === parsed.project.name || p.name.includes(parsed.project.name) || parsed.project.name.includes(p.name),
@@ -55,6 +60,15 @@ export default function ConfirmCard({
     setEdited((e) => ({
       ...e,
       tasks: e.tasks.map((t, idx) => (idx === i ? { ...t, ...patch } : t)),
+    }));
+  }
+
+  function updateSubtask(ti: number, si: number, patch: Partial<ParseResult['tasks'][number]['subtasks'][number]>) {
+    setEdited((e) => ({
+      ...e,
+      tasks: e.tasks.map((t, idx) =>
+        idx === ti ? { ...t, subtasks: t.subtasks.map((s, j) => (j === si ? { ...s, ...patch } : s)) } : t,
+      ),
     }));
   }
 
@@ -150,7 +164,7 @@ export default function ConfirmCard({
           <div className="mb-4 space-y-2">
             <p className="text-[10px] text-ink-faint font-mono tracking-wider">任务（{edited.tasks.length}）</p>
             <p className="text-[10px] text-ink-faint leading-snug">
-              对外截止 = 承诺交给别人的那天；我的计划 = 自己打算哪天做（一句话里两个日期都有时会自动拆成主任务+计划任务两条）
+              对外截止 = 承诺交给别人的那天；子任务 = 任务的执行排期（自己打算哪天做哪一步）
             </p>
             {edited.tasks.map((t, i) => (
               <div key={i} className="border border-line rounded-lg p-2.5 bg-card">
@@ -161,9 +175,6 @@ export default function ConfirmCard({
                     className="input-dark flex-1 text-[13px] px-2 py-1 min-w-0"
                     placeholder="任务名"
                   />
-                  {t.is_plan_item && (
-                    <span className="text-[9px] font-mono text-kimi-600 border border-kimi-200 rounded px-1 leading-4 shrink-0">计划</span>
-                  )}
                   <button
                     onClick={() => setEdited((e) => ({ ...e, tasks: e.tasks.filter((_, idx) => idx !== i) }))}
                     className="text-ink-faint hover:text-red-400 text-sm px-1 shrink-0"
@@ -203,16 +214,49 @@ export default function ConfirmCard({
                     />
                     {t.deadline && <span className="text-kimi-600">{weekdayCn(t.deadline)}</span>}
                   </label>
-                  <label className="flex items-center gap-1 text-ink-soft" title="我自己打算哪天去做（自我提醒，逾期不进对外承诺）">
-                    我的计划
-                    <input
-                      type="date"
-                      value={t.planned_date ?? ''}
-                      onChange={(e) => updateTask(i, { planned_date: e.target.value || null })}
-                      className="input-dark px-1.5 py-1 text-[11px]"
-                    />
-                    {t.planned_date && <span className="text-kimi-600">{weekdayCn(t.planned_date)}</span>}
-                  </label>
+                </div>
+                {/* 子任务（可增删）：任务执行的排期 */}
+                <div className="mt-2 space-y-1">
+                  {t.subtasks.map((s, si) => (
+                    <div key={si} className="flex items-center gap-1.5 text-[11px] font-mono">
+                      <span className="text-ink-faint shrink-0">›</span>
+                      <input
+                        value={s.name}
+                        onChange={(e) => updateSubtask(i, si, { name: e.target.value })}
+                        placeholder="子任务名称"
+                        className="input-dark flex-1 min-w-0 px-1.5 py-1 text-[11px]"
+                      />
+                      <input
+                        type="date"
+                        value={s.planned_date ?? ''}
+                        onChange={(e) => updateSubtask(i, si, { planned_date: e.target.value || null })}
+                        title="计划哪天做"
+                        className="input-dark px-1.5 py-1 text-[11px]"
+                      />
+                      <button
+                        onClick={() =>
+                          setEdited((e) => ({
+                            ...e,
+                            tasks: e.tasks.map((tt, idx) =>
+                              idx === i ? { ...tt, subtasks: tt.subtasks.filter((_, j) => j !== si) } : tt,
+                            ),
+                          }))
+                        }
+                        className="text-ink-faint hover:text-red-400 text-sm px-1 shrink-0"
+                        title="删除子任务"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() =>
+                      updateTask(i, { subtasks: [...t.subtasks, { name: '', planned_date: null }] })
+                    }
+                    className="text-[10px] font-mono text-ink-faint hover:text-kimi-600 border border-dashed border-line rounded px-2 py-0.5"
+                  >
+                    ＋ 添加子任务
+                  </button>
                 </div>
               </div>
             ))}
@@ -229,36 +273,16 @@ export default function ConfirmCard({
             rows={2}
             className="input-dark w-full text-xs px-2.5 py-1.5 resize-none"
           />
-          <div className="flex flex-wrap gap-2 mt-2 text-[11px] font-mono">
-            <label className="flex items-center gap-1 text-ink-soft">
-              耗时h
-              <input
-                type="number"
-                step="0.5"
-                min="0"
-                value={edited.log.duration_hours ?? ''}
-                onChange={(e) =>
-                  setEdited((p) => ({
-                    ...p,
-                    log: { ...p.log, duration_hours: e.target.value === '' ? null : Number(e.target.value) },
-                  }))
-                }
-                className="input-dark w-16 px-1.5 py-1"
-              />
-            </label>
+          <label className="flex items-center gap-1.5 mt-2 text-[11px] font-mono text-ink-soft" title="补记的是哪天的工作（日志和完成时间都会记到这一天）">
+            补记日期
             <input
-              value={edited.log.deliverable}
-              onChange={(e) => setEdited((p) => ({ ...p, log: { ...p.log, deliverable: e.target.value } }))}
-              placeholder="交付物（文件名/链接）"
-              className="input-dark flex-1 min-w-32 px-2 py-1"
+              type="date"
+              value={edited.log.date ?? ''}
+              onChange={(e) => setEdited((p) => ({ ...p, log: { ...p.log, date: e.target.value || null } }))}
+              className="input-dark px-1.5 py-1 text-[11px]"
             />
-            <input
-              value={edited.log.blocker}
-              onChange={(e) => setEdited((p) => ({ ...p, log: { ...p.log, blocker: e.target.value } }))}
-              placeholder="卡点"
-              className="input-dark flex-1 min-w-24 px-2 py-1"
-            />
-          </div>
+            {!edited.log.date && <span className="text-ink-faint">默认今天</span>}
+          </label>
         </div>
 
         {error && <p className="text-xs text-red-400 mb-2">{error}</p>}

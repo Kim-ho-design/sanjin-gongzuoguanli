@@ -45,17 +45,29 @@ function findProject(name: string): { id: number; name: string } | null {
   );
 }
 
-function createTask(pt: ParsedTask, projectId: number, parentTaskId: number | null): number {
+function createTask(pt: ParsedTask, projectId: number, parentTaskId: number | null, doneAt: string | null): number {
   const db = getDb();
   const status = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '待启动';
-  const completedAt = status === '已完成' || status === '待确认审核' ? nowStr() : null;
+  const completedAt = status === '已完成' || status === '待确认审核' ? (doneAt ?? nowStr()) : null;
   const r = db
     .prepare(
       `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, NULL, 0, ?, ?)`,
     )
-    .run(pt.name, projectId, status, pt.deadline, pt.planned_date, pt.is_plan_item ? 1 : 0, parentTaskId, completedAt);
+    .run(pt.name, projectId, status, pt.deadline, parentTaskId, completedAt);
   return Number(r.lastInsertRowid);
+}
+
+/** 落库子任务：继承父任务项目，deadline 恒 null、is_today 恒 0 */
+function createSubtasks(pt: ParsedTask, parentId: number, projectId: number) {
+  const db = getDb();
+  const insert = db.prepare(
+    `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today)
+     VALUES (?, ?, '待办事项', NULL, ?, 0, ?, 0)`,
+  );
+  for (const st of pt.subtasks) {
+    if (st.name.trim()) insert.run(st.name.trim(), projectId, st.planned_date, parentId);
+  }
 }
 
 /**
@@ -72,6 +84,8 @@ export function applyParseResult(
   const db = getDb();
   const summary: ApplySummary = { actions: [], task_ids: [], unclaimed_id: null };
   const parsedJson = JSON.stringify(parsed);
+  // 跨日期补记：log.date 存在时，日志和完成时间都记到那一天（时间部分统一 18:00）
+  const logAt = parsed.log.date ? `${parsed.log.date} 18:00:00` : null;
 
   // 1. 解析项目归属
   let projectId: number | null = null;
@@ -130,12 +144,16 @@ export function applyParseResult(
       summary.actions.push('无法确定项目归属，已放入待认领区');
       return summary;
     }
-    const id = createTask(pt, taskProjectId, null);
+    const id = createTask(pt, taskProjectId, null, logAt);
+    if (pt.subtasks.length) {
+      createSubtasks(pt, id, taskProjectId);
+      summary.actions.push(`子任务 ×${pt.subtasks.filter((s) => s.name.trim()).length} 已随任务创建`);
+    }
     resolvedTaskIds.push({ pt, id, existed: false });
     // 同名任务保留先建的（主任务）映射，避免计划任务覆盖导致父子关联指向自己
     if (!createdByName.has(norm(pt.name))) createdByName.set(norm(pt.name), id);
     summary.task_ids.push(id);
-    summary.actions.push(`新建任务「${pt.name}」${pt.deadline ? `（截止 ${pt.deadline}）` : ''}${pt.planned_date ? `（计划 ${pt.planned_date}）` : ''}`);
+    summary.actions.push(`新建任务「${pt.name}」${pt.deadline ? `（截止 ${pt.deadline}）` : ''}`);
   }
 
   // 回填 parent_task_id（拆任务规则：计划任务指向主任务）
@@ -157,26 +175,22 @@ export function applyParseResult(
       const target = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '待确认审核';
       db.prepare(
         `UPDATE tasks SET status = ?, completed_at = CASE WHEN ? IN ('已完成','待确认审核') THEN ? ELSE completed_at END WHERE id = ?`,
-      ).run(target, target, nowStr(), id);
+      ).run(target, target, logAt ?? nowStr(), id);
       summary.actions.push(`任务状态 → ${target}`);
     }
   }
 
-  if (parsed.intent === 'log_progress' || parsed.log.content || parsed.log.blocker || parsed.log.deliverable) {
+  if (parsed.intent === 'log_progress' || parsed.log.content) {
     if (firstTask) {
-      db.prepare(
-        `INSERT INTO logs (task_id, raw_text, parsed, duration_hours, blocker) VALUES (?, ?, ?, ?, ?)`,
-      ).run(firstTask.id, rawText, parsedJson, parsed.log.duration_hours, parsed.log.blocker || null);
+      db.prepare(`INSERT INTO logs (task_id, raw_text, parsed, created_at) VALUES (?, ?, ?, ?)`).run(
+        firstTask.id,
+        rawText,
+        parsedJson,
+        logAt ?? nowStr(),
+      );
       summary.actions.push('已记录进展');
       // log_progress 时若任务还在「待启动」，顺手推进到「进行中」
       db.prepare(`UPDATE tasks SET status = '进行中' WHERE id = ? AND status = '待启动'`).run(firstTask.id);
-      if (parsed.log.deliverable) {
-        db.prepare('INSERT INTO deliverables (task_id, name) VALUES (?, ?)').run(
-          firstTask.id,
-          parsed.log.deliverable,
-        );
-        summary.actions.push(`交付物「${parsed.log.deliverable}」已登记`);
-      }
     } else if (parsed.intent === 'log_progress') {
       // 有日志内容但挂不上任务 → 待认领区
       const r = db

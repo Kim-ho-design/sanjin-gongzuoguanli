@@ -17,13 +17,8 @@ const PROJECT_COLORS = [
   '#748FFC',
 ];
 
-function createDb(): Database.Database {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  const db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-
-  db.exec(`
+/** 建表 SQL（导出供测试用临时库复用） */
+export const SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -70,7 +65,15 @@ function createDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_logs_task ON logs(task_id);
     CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at);
-  `);
+  `;
+
+function createDb(): Database.Database {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+
+  db.exec(SCHEMA_SQL);
 
   // v4 迁移：旧「归档」状态并入「已完成」（归档分类已改为待办事项）
   db.prepare(`UPDATE tasks SET status = '已完成' WHERE status = '归档'`).run();
@@ -94,6 +97,19 @@ function createDb(): Database.Database {
 
   // v6 迁移：品牌蓝 #002FA7 → #3375F6，存量项目色统一换新
   db.prepare(`UPDATE projects SET color = '#3375F6' WHERE color IN ('#002FA7', '#4D6BFE', '#4D7CFE')`).run();
+
+  // v7 迁移：父任务的 planned_date 迁移为子任务（计划时间改由子任务承接）
+  // 未完成且无任何子任务的父任务 → 生成同名子任务承接原 planned_date；随后清空父任务 planned_date（列保留）
+  db.prepare(
+    `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, created_at)
+     SELECT t.name, t.project_id, '待办事项', NULL, t.planned_date, 0, t.id, 0, datetime('now','localtime')
+     FROM tasks t
+     WHERE t.parent_task_id IS NULL
+       AND t.planned_date IS NOT NULL
+       AND t.status NOT IN ('已完成', '待确认审核')
+       AND NOT EXISTS (SELECT 1 FROM tasks c WHERE c.parent_task_id = t.id)`,
+  ).run();
+  db.prepare(`UPDATE tasks SET planned_date = NULL WHERE parent_task_id IS NULL`).run();
 
   // 首次启动：写入预置项目
   const count = (db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }).c;
