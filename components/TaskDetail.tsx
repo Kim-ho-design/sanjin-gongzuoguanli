@@ -22,7 +22,8 @@ export default function TaskDetail({
 }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [logText, setLogText] = useState('');
-  const [deliverableName, setDeliverableName] = useState('');
+  const [newSubName, setNewSubName] = useState('');
+  const [newSubDate, setNewSubDate] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProjMode, setNewProjMode] = useState(false);
   const [newProjName, setNewProjName] = useState('');
@@ -91,22 +92,51 @@ export default function TaskDetail({
     onChanged();
   }
 
-  async function addDeliverable() {
-    if (!deliverableName.trim()) return;
-    await fetch('/api/deliverables', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task_id: taskId, name: deliverableName.trim() }),
-    });
-    setDeliverableName('');
-    await load();
-  }
-
   async function remove() {
     if (!confirm('确定删除这个任务？相关记录会一并删除。')) return;
     await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
     onChanged();
     onClose();
+  }
+
+  // ---- 子任务操作（复用 tasks/[id] 的 PATCH/DELETE，新建走 POST /api/tasks） ----
+  async function patchSub(id: number, body: Record<string, unknown>) {
+    await fetch(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    await load();
+    onChanged();
+  }
+
+  async function toggleSub(st: Detail['sub_tasks'][number]) {
+    await patchSub(st.id, { status: st.status === '已完成' ? '待办事项' : '已完成' });
+  }
+
+  async function removeSub(id: number) {
+    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+    await load();
+    onChanged();
+  }
+
+  async function addSub() {
+    if (!newSubName.trim() || !detail) return;
+    await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newSubName.trim(),
+        project_id: detail.task.project_id,
+        status: '待办事项',
+        planned_date: newSubDate || null,
+        parent_task_id: taskId,
+      }),
+    });
+    setNewSubName('');
+    setNewSubDate('');
+    await load();
+    onChanged();
   }
 
   if (!detail) {
@@ -193,15 +223,6 @@ export default function TaskDetail({
               className="input-dark px-1.5 py-0.5 text-[11px]"
             />
           </label>
-          <label className="flex items-center gap-1" title="自己打算哪天做">
-            我的计划
-            <input
-              type="date"
-              defaultValue={task.planned_date ?? ''}
-              onChange={(e) => patch({ planned_date: e.target.value || null })}
-              className="input-dark px-1.5 py-0.5 text-[11px]"
-            />
-          </label>
           {task.completed_at && (
             <label className="flex items-center gap-1" title="实际完成时间，可按真实情况修正">
               完成于
@@ -213,7 +234,6 @@ export default function TaskDetail({
               />
             </label>
           )}
-          {task.is_plan_item === 1 && <span className="text-kimi-600">计划任务</span>}
         </div>
 
         {/* 状态按钮（拖拽之外的第二通道） */}
@@ -238,17 +258,71 @@ export default function TaskDetail({
           待办事项=一次性小事；待确认审核=交付待验收；已完成=验收通过
         </p>
 
-        {/* 子任务（拆任务的计划项） */}
-        {sub_tasks.length > 0 && (
-          <div className="mb-5">
-            <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">关联计划任务</p>
-            {sub_tasks.map((st) => (
-              <p key={st.id} className="text-xs text-ink-soft py-0.5">
-                · {st.name}（{st.status}{st.planned_date ? `，计划 ${st.planned_date}` : ''}）
-              </p>
-            ))}
+        {/* 子任务（可编辑：勾选完成 / 改计划日期 / 增删） */}
+        <div className="mb-5">
+          <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">
+            子任务 SUBTASKS（{sub_tasks.filter((s) => s.status === '已完成').length}/{sub_tasks.length}）
+          </p>
+          <div className="space-y-1 mb-2">
+            {sub_tasks.length === 0 && <p className="text-xs text-ink-faint">还没有子任务</p>}
+            {sub_tasks.map((st) => {
+              const done = st.status === '已完成';
+              return (
+                <div key={st.id} className="flex items-center gap-1.5 group">
+                  <button
+                    onClick={() => toggleSub(st)}
+                    title={done ? '取消完成' : '完成'}
+                    className={`w-3.5 h-3.5 rounded-[3px] border shrink-0 flex items-center justify-center transition-colors ${
+                      done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-line hover:border-emerald-400'
+                    }`}
+                  >
+                    {done && (
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 5.2l2 2L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                  <span className={`text-xs flex-1 min-w-0 truncate ${done ? 'line-through text-ink-faint' : 'text-ink-soft'}`}>
+                    {st.name}
+                  </span>
+                  <input
+                    type="date"
+                    value={st.planned_date ?? ''}
+                    onChange={(e) => patchSub(st.id, { planned_date: e.target.value || null })}
+                    title="计划哪天做"
+                    className="input-dark px-1 py-0.5 text-[10px] font-mono w-[105px] shrink-0"
+                  />
+                  <button
+                    onClick={() => removeSub(st.id)}
+                    title="删除子任务"
+                    className="text-ink-faint hover:text-red-400 text-sm px-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        )}
+          <div className="flex items-center gap-1.5">
+            <input
+              value={newSubName}
+              onChange={(e) => setNewSubName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addSub()}
+              placeholder="添加子任务…"
+              className="input-dark flex-1 min-w-0 text-xs px-2 py-1"
+            />
+            <input
+              type="date"
+              value={newSubDate}
+              onChange={(e) => setNewSubDate(e.target.value)}
+              title="计划日期（可空）"
+              className="input-dark px-1 py-1 text-[10px] font-mono w-[105px] shrink-0"
+            />
+            <button onClick={addSub} className="text-xs border border-line rounded-lg px-2.5 py-1 hover:border-kimi-400 shrink-0">
+              +
+            </button>
+          </div>
+        </div>
 
         {/* 时间线 */}
         <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">时间线 TIMELINE（{logs.length}）</p>
@@ -281,31 +355,25 @@ export default function TaskDetail({
           <button onClick={addLog} className="text-xs bg-kimi-500 text-white rounded-lg px-3 hover:bg-kimi-400">记</button>
         </div>
 
-        {/* 交付物 */}
-        <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">交付物（{deliverables.length}）</p>
-        <div className="mb-2 space-y-1">
-          {deliverables.map((d) => (
-            <p key={d.id} className="text-xs">
-              {d.link ? (
-                <a href={d.link} target="_blank" rel="noreferrer" className="text-kimi-600 hover:underline">
-                  📎 {d.name}
-                </a>
-              ) : (
-                <span>📎 {d.name}</span>
-              )}
-            </p>
-          ))}
-        </div>
-        <div className="flex gap-1.5 mb-6">
-          <input
-            value={deliverableName}
-            onChange={(e) => setDeliverableName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addDeliverable()}
-            placeholder="登记交付物名称…"
-            className="input-dark flex-1 text-xs px-2.5 py-1.5"
-          />
-          <button onClick={addDeliverable} className="text-xs border border-line rounded-lg px-3 hover:border-kimi-400">+</button>
-        </div>
+        {/* 交付物（历史数据只读展示，不再新增录入） */}
+        {deliverables.length > 0 && (
+          <>
+            <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">交付物（{deliverables.length}）</p>
+            <div className="mb-6 space-y-1">
+              {deliverables.map((d) => (
+                <p key={d.id} className="text-xs">
+                  {d.link ? (
+                    <a href={d.link} target="_blank" rel="noreferrer" className="text-kimi-600 hover:underline">
+                      📎 {d.name}
+                    </a>
+                  ) : (
+                    <span>📎 {d.name}</span>
+                  )}
+                </p>
+              ))}
+            </div>
+          </>
+        )}
 
         <button onClick={remove} className="text-xs text-red-400/70 hover:text-red-400">
           删除任务

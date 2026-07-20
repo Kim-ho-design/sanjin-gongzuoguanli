@@ -73,13 +73,13 @@ export default function TopBar({
             <PixelNumber
               value={String(stats.overdue_count)}
               size={3.5}
-              color={stats.overdue_count > 0 ? '#FF5C5C' : '#3375F6'}
+              color={stats.overdue_count > 0 ? '#FF5C5C' : '#3E81F6'}
             />
             <span className="text-ink-faint font-mono text-sm">+</span>
             <PixelNumber
               value={String(stats.unclaimed_count)}
               size={3.5}
-              color={stats.unclaimed_count > 0 ? '#F5A623' : '#3375F6'}
+              color={stats.unclaimed_count > 0 ? '#F5A623' : '#3E81F6'}
             />
           </div>
           <p className="text-[10px] text-ink-faint font-mono mt-0.5">超期 + 待认领</p>

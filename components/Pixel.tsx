@@ -23,7 +23,7 @@ const GLYPHS: Record<string, string[]> = {
 export function PixelNumber({
   value,
   size = 3,
-  color = '#3375F6',
+  color = '#3E81F6',
   dimColor = '#DFEAFD',
 }: {
   value: string;
@@ -96,7 +96,7 @@ export function PixelLogo({ size = 28 }: { size?: number }) {
       {rows.map((row, y) =>
         row.split('').map((cell, x) =>
           cell === '1' ? (
-            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#3375F6" />
+            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#3E81F6" />
           ) : null,
         ),
       )}

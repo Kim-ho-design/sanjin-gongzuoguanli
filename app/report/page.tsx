@@ -146,9 +146,12 @@ export default function ReportPage() {
               className="text-sm bg-kimi-500 hover:bg-kimi-600 text-white rounded-lg px-5 py-2 font-medium transition-colors disabled:opacity-40 flex items-center gap-2"
             >
               {loading && <PixelLoader />}
-              生成
+              {loading ? 'AI 生成中…' : '生成'}
             </button>
           </div>
+          {loading && (
+            <p className="text-[11px] text-ink-faint font-mono">正在汇总数据并调用 AI 撰写周报，通常需要几秒钟…</p>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}

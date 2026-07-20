@@ -20,6 +20,7 @@ export interface Task {
   project_id: number;
   status: TaskStatus;
   deadline: string | null;
+  /** @deprecated 父任务不再有计划日期，计划时间由子任务承接（DB 列保留，仅子任务使用） */
   planned_date: string | null;
   is_plan_item: number;
   parent_task_id: number | null;
@@ -30,6 +31,9 @@ export interface Task {
   project_name?: string;
   project_color?: string;
   log_count?: number;
+  sub_total?: number;
+  sub_done?: number;
+  parent_name?: string;
 }
 
 export interface Log {
@@ -73,21 +77,25 @@ export interface ParsedProject {
   confidence: number;
 }
 
+export interface ParsedSubtask {
+  name: string;
+  planned_date: string | null;
+}
+
 export interface ParsedTask {
   name: string;
   matched_existing: boolean;
   status: string;
   deadline: string | null;
-  planned_date: string | null;
-  is_plan_item: boolean;
   parent_task_name: string | null;
+  /** 子任务：LLM 不输出，确认卡片里手动增删，validate 时兜底为空数组 */
+  subtasks: ParsedSubtask[];
 }
 
 export interface ParsedLog {
   content: string;
-  duration_hours: number | null;
-  deliverable: string;
-  blocker: string;
+  /** 补记日期（YYYY-MM-DD）：用户提到"昨天/上周X"等过去时间时由 LLM 推断，没提则为 null（默认今天） */
+  date: string | null;
 }
 
 export interface ParseResult {
