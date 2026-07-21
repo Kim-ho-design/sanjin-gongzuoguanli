@@ -40,7 +40,8 @@ function intensity(s: DayStat | undefined): number {
   return 4;
 }
 
-const HEAT = ['bg-transparent', 'bg-kimi-50', 'bg-kimi-100', 'bg-kimi-200', 'bg-kimi-300'];
+// 预警式热力：蓝(轻) → 黄 → 橙 → 红(最重)
+const HEAT = ['bg-transparent', 'bg-kimi-100', 'bg-amber-200', 'bg-orange-300', 'bg-red-400'];
 
 export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => {

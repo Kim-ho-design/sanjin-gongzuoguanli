@@ -1,6 +1,6 @@
 // 共享类型定义（前后端通用）
 
-export const TASK_STATUSES = ['待办事项', '待启动', '进行中', '待确认审核', '已完成'] as const;
+export const TASK_STATUSES = ['待启动', '进行中', '已完成'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export const PROJECT_STATUSES = ['进行中', '暂停', '完结'] as const;
@@ -59,6 +59,17 @@ export interface Unclaimed {
   raw_text: string;
   parsed: string | null;
   created_at: string;
+}
+
+/** 超期明细条目（board API stats 同口径）：父任务看 deadline，子任务看 planned_date */
+export interface OverdueItem {
+  kind: 'task' | 'subtask';
+  id: number;
+  parent_id?: number; // kind=subtask 时有值，点击打开父任务详情
+  name: string;
+  parent_name?: string; // kind=subtask 时有值
+  date: string; // task=deadline，subtask=planned_date
+  project_color?: string | null;
 }
 
 // ---- LLM 解析层 schema（需求文档 4.1，锁死） ----

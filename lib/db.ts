@@ -111,6 +111,13 @@ function createDb(): Database.Database {
   ).run();
   db.prepare(`UPDATE tasks SET planned_date = NULL WHERE parent_task_id IS NULL`).run();
 
+  // v8 迁移：状态集收敛为 待启动/进行中/已完成（待确认审核→已完成并回填完成时间，待办事项→待启动）
+  db.prepare(
+    `UPDATE tasks SET status = '已完成', completed_at = COALESCE(completed_at, datetime('now','localtime'))
+     WHERE status = '待确认审核'`,
+  ).run();
+  db.prepare(`UPDATE tasks SET status = '待启动' WHERE status = '待办事项'`).run();
+
   // 首次启动：写入预置项目
   const count = (db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }).c;
   if (count === 0) {

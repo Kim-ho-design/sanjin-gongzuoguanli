@@ -36,9 +36,9 @@ export default function InputBox({
   }
 
   return (
-    <div className="panel p-3 !border-kimi-200/60">
-      <div className="flex gap-2 items-start">
-        <span className="text-kimi-500 font-mono text-sm pt-1.5 pl-1 select-none">&gt;</span>
+    <div className="panel rounded-3xl px-4 py-3 transition-all focus-within:!border-kimi-400 focus-within:ring-4 focus-within:ring-kimi-500/15">
+      <div className="flex gap-2 items-center">
+        <span className="text-kimi-500 font-mono text-sm pl-1 select-none">&gt;</span>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -48,14 +48,14 @@ export default function InputBox({
               submit();
             }
           }}
-          placeholder="说人话就行：做了什么、要做什么、卡在哪了…（Enter 发送）"
+          placeholder="说人话就行：今天做了什么、接下来要做什么、卡在哪了…  Enter 发送"
           rows={1}
-          className="flex-1 resize-none text-sm outline-none px-2 py-1.5 placeholder:text-ink-faint bg-transparent text-ink"
+          className="flex-1 resize-none text-sm outline-none px-2 py-1.5 placeholder:text-ink-faint/80 bg-transparent text-ink"
         />
         <button
           onClick={submit}
           disabled={loading || !text.trim()}
-          className="shrink-0 bg-kimi-500 hover:bg-kimi-400 text-white text-sm rounded-lg px-4 py-1.5 font-medium transition-colors disabled:opacity-40 flex items-center gap-2"
+          className="shrink-0 bg-kimi-500 hover:bg-kimi-400 text-white text-sm rounded-xl px-5 py-2 font-medium transition-all shadow-btn hover:-translate-y-px disabled:opacity-40 disabled:shadow-none disabled:translate-y-0 flex items-center gap-2"
         >
           {loading ? <PixelLoader /> : '发送'}
         </button>

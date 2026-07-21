@@ -38,12 +38,14 @@ export interface ReportData {
   end: string;
   /** 区间内完成的父任务（子任务不混入完成统计） */
   done_tasks: ReportDoneTask[];
-  /** 全部未完成父任务（状态 ∉ 已完成/待确认审核），含子任务推进情况 → 下周计划平移 */
+  /** 全部未完成父任务（状态 ≠ 已完成），含子任务推进情况 → 下周计划平移 */
   open_tasks: ReportOpenTask[];
   /** 区间内全部日志（含挂在子任务上的） */
   logs: ReportLog[];
   /** 历史交付物（若有），由 AI 决定是否提及 */
   deliverables: { task_name: string; name: string; link: string | null }[];
+  /** 漂流瓶：父 deadline 过期 ∪ 子 planned_date 过期（与 board API 同口径，子任务带父名） */
+  drifting: { name: string; project_name: string; parent_name?: string; date: string; status: string }[];
 }
 
 type TaskRow = Task & { project_name: string };
@@ -58,8 +60,14 @@ export function collectReportData(start: string, end: string): ReportData {
     )
     .all() as TaskRow[];
   const subs = db
-    .prepare(`SELECT id, name, status, planned_date, parent_task_id FROM tasks WHERE parent_task_id IS NOT NULL`)
-    .all() as Pick<Task, 'id' | 'name' | 'status' | 'planned_date' | 'parent_task_id'>[];
+    .prepare(
+      `SELECT s.id, s.name, s.status, s.planned_date, s.parent_task_id, pt.name AS parent_name
+       FROM tasks s JOIN tasks pt ON pt.id = s.parent_task_id
+       WHERE s.parent_task_id IS NOT NULL`,
+    )
+    .all() as (Pick<Task, 'id' | 'name' | 'status' | 'planned_date' | 'parent_task_id'> & {
+      parent_name: string;
+    })[];
 
   const subsByParent = new Map<number, typeof subs>();
   for (const s of subs) {
@@ -70,15 +78,12 @@ export function collectReportData(start: string, end: string): ReportData {
   }
 
   const done_tasks: ReportDoneTask[] = parents
-    .filter(
-      (t) =>
-        (t.status === '已完成' || t.status === '待确认审核') && inRange(t.completed_at, start, end),
-    )
+    .filter((t) => t.status === '已完成' && inRange(t.completed_at, start, end))
     .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''))
     .map((t) => ({ name: t.name, project_name: t.project_name, status: t.status, completed_at: t.completed_at }));
 
   const open_tasks: ReportOpenTask[] = parents
-    .filter((t) => t.status !== '已完成' && t.status !== '待确认审核')
+    .filter((t) => t.status !== '已完成')
     .map((t) => {
       const children = subsByParent.get(t.id) ?? [];
       const open = children.filter((s) => s.status !== '已完成');
@@ -110,7 +115,26 @@ export function collectReportData(start: string, end: string): ReportData {
     )
     .all() as ReportData['deliverables'];
 
-  return { start, end, done_tasks, open_tasks, logs, deliverables };
+  // 漂流瓶：父任务 deadline 过期 ∪ 子任务 planned_date 过期（子任务的计划日期即其截止语义）
+  const drifting: ReportData['drifting'] = [
+    ...parents
+      .filter((t) => isOverdue(t.deadline, t.status))
+      .map((t) => ({ name: t.name, project_name: t.project_name, date: t.deadline as string, status: t.status })),
+    ...subs
+      .filter((s) => isOverdue(s.planned_date, s.status))
+      .map((s) => {
+        const project = parents.find((p) => p.id === s.parent_task_id)?.project_name ?? '';
+        return {
+          name: s.name,
+          project_name: project,
+          parent_name: s.parent_name,
+          date: s.planned_date as string,
+          status: s.status,
+        };
+      }),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  return { start, end, done_tasks, open_tasks, logs, deliverables, drifting };
 }
 
 /* ---------------- 生成层：DeepSeek prompt ---------------- */
@@ -225,12 +249,12 @@ function renderFull(data: ReportData): string {
     }
   }
 
-  // 漂流瓶：超期未完成（只认 deadline，数据里只有父任务）
-  const drifting = data.open_tasks.filter((t) => isOverdue(t.deadline, t.status));
+  // 漂流瓶：超期未完成（与看板同口径，含计划过期的子任务）
   lines.push('## 漂流瓶（超期未完成）', '');
-  if (drifting.length) {
-    for (const t of drifting) {
-      lines.push(`- 「${t.name}」（${t.project_name}）— 截止 ${t.deadline}，当前：${t.status}`);
+  if (data.drifting.length) {
+    for (const t of data.drifting) {
+      const label = t.parent_name ? `${t.parent_name} › ${t.name}` : t.name;
+      lines.push(`- 「${label}」（${t.project_name}）— ${t.parent_name ? '计划' : '截止'} ${t.date}，当前：${t.status}`);
     }
   } else {
     lines.push('- 无');

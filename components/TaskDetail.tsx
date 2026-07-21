@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TASK_STATUSES } from '@/lib/types';
-import type { Log, Deliverable, Task, TaskStatus, Project } from '@/lib/types';
+import type { Log, Deliverable, Task, Project } from '@/lib/types';
 
 interface Detail {
   task: Task;
@@ -111,7 +110,7 @@ export default function TaskDetail({
   }
 
   async function toggleSub(st: Detail['sub_tasks'][number]) {
-    await patchSub(st.id, { status: st.status === '已完成' ? '待办事项' : '已完成' });
+    await patchSub(st.id, { status: st.status === '已完成' ? '待启动' : '已完成' });
   }
 
   async function removeSub(id: number) {
@@ -128,7 +127,7 @@ export default function TaskDetail({
       body: JSON.stringify({
         name: newSubName.trim(),
         project_id: detail.task.project_id,
-        status: '待办事项',
+        status: '待启动',
         planned_date: newSubDate || null,
         parent_task_id: taskId,
       }),
@@ -236,27 +235,24 @@ export default function TaskDetail({
           )}
         </div>
 
-        {/* 状态按钮（拖拽之外的第二通道） */}
-        <p className="text-[10px] text-ink-faint font-mono tracking-wider mb-1.5">状态 STATUS</p>
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {TASK_STATUSES.map((s: TaskStatus) => (
+        {/* 状态操作：只有完成/重开两个动作，待启动与进行中由日期自动决定 */}
+        <div className="mb-5">
+          {task.status === '已完成' ? (
             <button
-              key={s}
-              onClick={() => patch({ status: s })}
-              title={s === '待办事项' ? '一次性小动作/提醒，做完点✓直接完成，不走流程' : undefined}
-              className={`text-xs border rounded-full px-2.5 py-1 transition-colors ${
-                task.status === s
-                  ? 'bg-kimi-500 text-white border-kimi-500'
-                  : 'border-line hover:border-kimi-400'
-              }`}
+              onClick={() => patch({ status: '待启动' })}
+              className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-amber-400 hover:text-amber-600 transition-colors"
             >
-              {s}
+              ↩ 重新打开
             </button>
-          ))}
+          ) : (
+            <button
+              onClick={() => patch({ status: '已完成' })}
+              className="text-xs bg-emerald-500 text-white rounded-full px-3 py-1.5 hover:bg-emerald-400 transition-colors"
+            >
+              ✓ 标记完成
+            </button>
+          )}
         </div>
-        <p className="text-[10px] text-ink-faint mb-5">
-          待办事项=一次性小事；待确认审核=交付待验收；已完成=验收通过
-        </p>
 
         {/* 子任务（可编辑：勾选完成 / 改计划日期 / 增删） */}
         <div className="mb-5">

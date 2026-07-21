@@ -35,8 +35,8 @@ ${projectList}
 【当前未完成任务列表】
 ${taskList}
 
-【看板状态列】待办事项 / 待启动 / 进行中 / 待确认审核 / 已完成
-（待办事项 = 一次性的小动作、自我提醒类任务，做完即完，不走流程；流程性工作从「待启动」开始）
+【看板状态列】待启动 / 进行中 / 已完成
+（新任务默认从「待启动」开始；做完了就「已完成」，没有中间验收态）
 
 【输出 Schema】（严格遵守，只输出 JSON，不要任何解释）
 {
@@ -64,19 +64,20 @@ ${taskList}
 4. 【多动作拆解】一句话里出现多个独立事项时（例如"X已经完成了，另外下周记得做Y"），拆成多条任务分别输出，每条任务只带自己的日期，不要把A事项的日期安到B事项头上。
 5. 意图判断（取整句话的主要意图填入 intent，但每条任务的状态以该任务自身的语义为准）：
    - "要做X"/"周四完成X" → create_task 或 set_plan
-   - "X做完了"/"改完了"/"已经完成" → update_task，该任务状态一律填「待确认审核」，禁止直接填「已完成」（已完成只用于明确说了"验收过了/已确认"的场景）
+   - "X做完了"/"改完了"/"已经完成" → update_task，该任务状态一律填「已完成」
    - "X在写/改了一版" → log_progress，状态不变
    - "X卡住了" → log_progress，卡点经过写进 log.content
 6. 【补记闭环】用户汇报自己做过/在做的工作（如下班补记"今天写了三期脚本、改了海报"），在【当前未完成任务列表】里匹配不到时，必须输出一条新任务（matched_existing=false），按语义给状态：已经做完的填「已完成」，还在推进的填「进行中」；日志内容填进 log.content，挂到该任务。禁止因为匹配不到任务就把汇报丢进 unclear。
 7. 【补记日期】用户提到"昨天/前天/周X/上周X/X月X号"等过去时间时，把对应日期填进 log.date（YYYY-MM-DD，参照当前日期和日期对照表推断）；没提过去时间就不输出 date（默认今天）。log.date 同时作为该次补记任务的完成日期。
 8. 【子任务拆分】自然语言里出现"先…再…/分几步/分两个阶段/周X做A周Y做B"等拆分语义时，把各个步骤输出为该任务的 subtasks（name + planned_date，planned_date 严格查日期对照表，推断不出就留 null）；没有拆分语义时 subtasks 输出空数组 []。
-9. 【deadline 的语义】
-   - deadline = 对外截止日期：交付给别人、对外承诺的那一天（"周四要交"/"截止周五"）
-   - 没有对外承诺的日期一律不填 deadline，留 null（个人哪天做由子任务排期承担）
-   - 【待办事项判定】一次性的孤立小动作（约个会、发个消息、过一遍东西、记得带资料），没有后续流程的 → status 填「待办事项」；需要多步推进的创作/制作类工作 → 「待启动」
+9. 【时间词必须落到日期】用户提到的时间词（"今天"/"周五上午"/"下周三"/"X月X号"等）必须落到日期字段，禁止丢弃：
+   - 一次性事项（培训、配合拍摄、开会、发消息等"哪天做/哪天发生"的事）→ 直接填 deadline 为那一天，status 填「待启动」
+   - 对外承诺的交付日期（"周四要交"/"截止周五"）→ 同样填 deadline
+   - 有拆分排期语义（先…再…/周X做A周Y做B）→ 各步骤进 subtasks 的 planned_date（见规则 8），deadline 留 null
+   - 只有完全没时间词时才允许日期留 null
 10. 时间严格按【日期对照表】换算成 YYYY-MM-DD；对照表覆盖不到、算不准就留空并反问。
 11. 【指代不明必须反问】当某个时间/动作说不清属于哪条任务时（例如"我明天会完成"看不出在完成什么），不要猜测补全：对应字段留空，needs_confirmation=true，在 clarify_question 里问清楚。禁止编造任务名、项目名、数字。
-12. 「待办事项」只用于一次性小动作；状态列里没有"归档"，解析输出永远不要给任务填「归档」状态。
+12. 状态列里只有 待启动/进行中/已完成 三个值，解析输出永远不要给任务填其他状态（如"待办事项""待确认审核""归档"）。
 13. 只输出符合 schema 的 JSON，不要输出任何其他内容。
 
 【示例1：对外截止】
@@ -97,5 +98,10 @@ ${taskList}
 【示例4：跨日期补记】
 输入："昨天把徕乔账号的周三视频剪完了"（假设今天=07-22，昨天=07-21）
 要点："昨天"→ log.date=2026-07-21，日志和完成时间都算在那天
-输出：{"intent":"log_progress","project":{"name":"","is_new":false,"confidence":0},"tasks":[{"name":"徕乔账号周三视频剪辑","matched_existing":false,"status":"已完成","deadline":null,"parent_task_name":null,"subtasks":[]}],"log":{"content":"剪完徕乔账号周三视频","date":"2026-07-21"},"needs_confirmation":true,"clarify_question":"这条属于哪个项目？"}`;
+输出：{"intent":"log_progress","project":{"name":"","is_new":false,"confidence":0},"tasks":[{"name":"徕乔账号周三视频剪辑","matched_existing":false,"status":"已完成","deadline":null,"parent_task_name":null,"subtasks":[]}],"log":{"content":"剪完徕乔账号周三视频","date":"2026-07-21"},"needs_confirmation":true,"clarify_question":"这条属于哪个项目？"}
+
+【示例5：一次性事项的时间词落 deadline】
+输入："周五上午产品培训"（假设今天=07-21 周二，本周五=07-24）
+要点：一次性事项的时间词必须落到 deadline；"参加培训"是一次性事项 → 待启动
+输出：{"intent":"create_task","project":{"name":"","is_new":false,"confidence":0},"tasks":[{"name":"产品培训","matched_existing":false,"status":"待启动","deadline":"2026-07-24","parent_task_name":null,"subtasks":[]}],"log":{"content":"","date":null},"needs_confirmation":true,"clarify_question":"这个培训属于哪个项目？"}`;
 }

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { TASK_STATUSES } from '@/lib/types';
-import { nowStr } from '@/lib/utils';
+import { nowStr, isValidDateStr } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,9 +39,27 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }>;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(params.id) as
-    | { status: string }
+    | { status: string; parent_task_id: number | null }
     | undefined;
   if (!existing) return NextResponse.json({ error: '任务不存在' }, { status: 404 });
+
+  // 日期校验：格式必须合法；父任务不写 planned_date（排期用子任务）、子任务不写 deadline（恒 null）
+  if (body.deadline !== undefined) {
+    if (existing.parent_task_id !== null) {
+      return NextResponse.json({ error: '子任务没有对外截止，日期请改 planned_date' }, { status: 400 });
+    }
+    if (body.deadline !== null && !isValidDateStr(body.deadline)) {
+      return NextResponse.json({ error: 'deadline 格式应为 YYYY-MM-DD' }, { status: 400 });
+    }
+  }
+  if (body.planned_date !== undefined) {
+    if (existing.parent_task_id === null) {
+      return NextResponse.json({ error: '父任务不使用计划日期，排期请通过子任务' }, { status: 400 });
+    }
+    if (body.planned_date !== null && !isValidDateStr(body.planned_date)) {
+      return NextResponse.json({ error: 'planned_date 格式应为 YYYY-MM-DD' }, { status: 400 });
+    }
+  }
 
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -55,10 +73,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
     sets.push('status = ?');
     vals.push(body.status);
-    if (body.status === '已完成' || body.status === '待确认审核') {
+    if (body.status === '已完成') {
       sets.push('completed_at = ?');
       vals.push(nowStr());
-    } else if (existing.status === '已完成' || existing.status === '待确认审核') {
+    } else if (existing.status === '已完成') {
       sets.push('completed_at = NULL');
     }
   }

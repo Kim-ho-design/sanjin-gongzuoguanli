@@ -2,22 +2,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { ParseResult, Project, Task, TaskStatus, Unclaimed } from '@/lib/types';
+import type { OverdueItem, ParseResult, Project, Task, Unclaimed } from '@/lib/types';
 import type { ApplySummary } from '@/lib/apply';
-import Board from '@/components/Board';
 import TopBar, { BoardStats } from '@/components/TopBar';
+import WeekView from '@/components/WeekView';
 import InputBox from '@/components/InputBox';
 import ConfirmCard from '@/components/ConfirmCard';
 import TaskDetail from '@/components/TaskDetail';
 import UnclaimedPanel from '@/components/UnclaimedPanel';
-import TodaySidebar from '@/components/TodaySidebar';
 import { AvatarLogo } from '@/components/Pixel';
+import { todayStr, splitByProgress } from '@/lib/utils';
 
 interface BoardData {
   projects: Project[];
   tasks: Task[];
   subtasks: Task[];
   unclaimed: Unclaimed[];
+  overdue_items: OverdueItem[];
   stats: BoardStats;
 }
 
@@ -28,7 +29,6 @@ export default function HomePage() {
   const [pendingParse, setPendingParse] = useState<{ rawText: string; parsed: ParseResult } | null>(null);
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
   const [showDrift, setShowDrift] = useState(false);
-  const [showToday, setShowToday] = useState(false);
   const [toast, setToast] = useState('');
   const [addingProject, setAddingProject] = useState(false);
   const [newProjName, setNewProjName] = useState('');
@@ -56,33 +56,6 @@ export default function HomePage() {
     setTimeout(() => setToast(''), 3000);
   }
 
-  async function moveTask(task: Task, status: TaskStatus) {
-    // 乐观更新
-    setData((d) =>
-      d ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, status } : t)) } : d,
-    );
-    await fetch(`/api/tasks/${task.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    load();
-  }
-
-  async function toggleToday(task: Task) {
-    setData((d) =>
-      d
-        ? { ...d, tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, is_today: t.is_today ? 0 : 1 } : t)) }
-        : d,
-    );
-    await fetch(`/api/tasks/${task.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_today: !task.is_today }),
-    });
-    load();
-  }
-
   function handleParsed(rawText: string, parsed: ParseResult) {
     if (parsed.intent === 'weekly_review') {
       window.location.href = '/report';
@@ -95,6 +68,69 @@ export default function HomePage() {
     setPendingParse(null);
     showToast(summary.actions.join('；') || '已入库');
     load();
+  }
+
+  // 周视图拖拽：父任务改 deadline，子任务改 planned_date（乐观更新，失败回滚+提示）
+  async function moveTaskDate(task: Task, date: string | null) {
+    const isSub = task.parent_task_id !== null;
+    const prev = data; // 失败回滚用
+    setData((d) =>
+      d
+        ? {
+            ...d,
+            tasks: isSub ? d.tasks : d.tasks.map((t) => (t.id === task.id ? { ...t, deadline: date } : t)),
+            subtasks: isSub ? d.subtasks.map((t) => (t.id === task.id ? { ...t, planned_date: date } : t)) : d.subtasks,
+          }
+        : d,
+    );
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isSub ? { planned_date: date } : { deadline: date }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error || '保存失败');
+      }
+    } catch (e) {
+      setData(prev); // 回滚乐观更新
+      showToast(`日期更新失败：${e instanceof Error ? e.message : '网络错误'}，已回滚`);
+      return;
+    }
+    load();
+  }
+
+  // 卡片 ✓ 快速完成：已完成 ↔ 待启动（乐观更新，失败回滚+提示）
+  async function toggleComplete(task: Task) {
+    const next = task.status === '已完成' ? '待启动' : '已完成';
+    const isSub = task.parent_task_id !== null;
+    const prev = data; // 失败回滚用
+    setData((d) =>
+      d
+        ? {
+            ...d,
+            tasks: isSub ? d.tasks : d.tasks.map((t) => (t.id === task.id ? { ...t, status: next } : t)),
+            subtasks: isSub ? d.subtasks.map((t) => (t.id === task.id ? { ...t, status: next } : t)) : d.subtasks,
+          }
+        : d,
+    );
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error || '保存失败');
+      }
+    } catch (e) {
+      setData(prev); // 回滚乐观更新
+      showToast(`状态更新失败：${e instanceof Error ? e.message : '网络错误'}，已回滚`);
+      return;
+    }
+    load(); // 拉取最新统计（完成率/进行中数即时重算）
   }
 
   async function addProject() {
@@ -130,27 +166,23 @@ export default function HomePage() {
     load();
   }
 
-  const filteredTasks =
-    data?.tasks.filter((t) => filterProject === 0 || t.project_id === filterProject) ?? [];
+  const filteredTasks = data?.tasks.filter((t) => filterProject === 0 || t.project_id === filterProject) ?? [];
+  const filteredSubtasks = data?.subtasks.filter((t) => filterProject === 0 || t.project_id === filterProject) ?? [];
+  // 待启动/进行中/已完成三列计数与浮层数据（splitByProgress 口径）
+  const progress = splitByProgress([...filteredTasks, ...filteredSubtasks], todayStr());
 
   return (
-    <main className="min-h-screen ascii-bg flex flex-col">
+    <main className="min-h-screen ascii-bg pixel-dots flex flex-col">
       {/* 顶栏 */}
       <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-panel/80 backdrop-blur">
         <AvatarLogo size={32} />
-        <h1 className="font-bold tracking-wide">三金打工清单</h1>
+        <h1 className="text-lg font-bold tracking-wide">三金打工清单</h1>
         <span className="text-[10px] font-mono text-ink-faint tracking-[0.25em] hidden sm:inline">
           PLAN · DO · LOG · REVIEW
         </span>
         <Link
-          href="/week"
-          className="ml-auto text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
-        >
-          🗓 周视图
-        </Link>
-        <Link
           href="/calendar"
-          className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+          className="ml-auto text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
         >
           📅 月视图
         </Link>
@@ -162,17 +194,29 @@ export default function HomePage() {
         </Link>
       </header>
 
-      <div className="px-5 py-4 flex flex-col gap-4 flex-1">
+      <div className="px-5 py-4 flex flex-col gap-4 flex-1 max-w-[1600px] w-full mx-auto">
         {error && <p className="text-sm text-red-400">{error}</p>}
 
-        {data && <TopBar stats={data.stats} onOpenDrift={() => setShowDrift(true)} onOpenToday={() => setShowToday((v) => !v)} />}
+        {data && (
+          <div className="fade-up" style={{ animationDelay: '0ms' }}>
+            <TopBar
+              stats={data.stats}
+              overdueItems={data.overdue_items ?? []}
+              progress={progress}
+              onOpenDrift={() => setShowDrift(true)}
+              onOpenTask={(id) => setOpenTaskId(id)}
+            />
+          </div>
+        )}
 
         {/* 唯一输入口 */}
-        <InputBox onParsed={handleParsed} />
+        <div className="fade-up" style={{ animationDelay: '80ms' }}>
+          <InputBox onParsed={handleParsed} />
+        </div>
 
         {/* 项目筛选 */}
         {data && (
-          <div className="flex gap-1.5 flex-wrap items-center">
+          <div className="fade-up flex gap-1.5 flex-wrap items-center" style={{ animationDelay: '140ms' }}>
             <button
               onClick={() => setFilterProject(0)}
               className={`text-xs border rounded-full px-3 py-1 transition-colors ${
@@ -241,27 +285,16 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 看板 + 今日侧栏 */}
         {data ? (
-          <div className="flex gap-3 items-start flex-1">
-            {showToday && (
-              <TodaySidebar
-                tasks={data.tasks}
-                subtasks={data.subtasks ?? []}
-                onOpen={(t) => setOpenTaskId(t.id)}
-                onComplete={(t) => moveTask(t, '已完成')}
-                onClose={() => setShowToday(false)}
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <Board
-                tasks={filteredTasks}
-                onOpen={(t) => setOpenTaskId(t.id)}
-                onMove={moveTask}
-                onToggleToday={toggleToday}
-                onComplete={(t) => moveTask(t, '已完成')}
-              />
-            </div>
+          /* 周视图主视图：拖拽改日期 */
+          <div className="fade-up" style={{ animationDelay: '200ms' }}>
+            <WeekView
+              tasks={filteredTasks}
+              subtasks={filteredSubtasks}
+              onOpen={(id) => setOpenTaskId(id)}
+              onMoveDate={moveTaskDate}
+              onToggle={toggleComplete}
+            />
           </div>
         ) : (
           !error && <p className="text-sm text-ink-faint py-10 text-center font-mono">LOADING…</p>

@@ -31,14 +31,14 @@ export async function GET(req: NextRequest) {
   const due = db
     .prepare(
       `SELECT t.id, t.name, t.status, t.deadline, p.name AS project_name, p.color AS project_color
-       FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.deadline = ?`,
+       FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.deadline = ? AND t.status != '已完成'`,
     )
     .all(date);
 
   const planned = db
     .prepare(
       `SELECT t.id, t.name, t.status, t.planned_date, p.name AS project_name, p.color AS project_color
-       FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.planned_date = ?`,
+       FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.planned_date = ? AND t.status != '已完成'`,
     )
     .all(date);
 

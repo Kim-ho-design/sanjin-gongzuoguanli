@@ -58,12 +58,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   const t = snap.task;
+  // 旧状态映射到当前状态集（v8 前快照可能带 待确认审核/待办事项）
+  const status = t.status === '待确认审核' ? '已完成' : t.status === '待办事项' ? '待启动' : t.status;
   const r = db
     .prepare(
       `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, created_at, completed_at)
        VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)`,
     )
-    .run(t.name, projectId, t.status, t.deadline, t.planned_date, t.is_today ? 1 : 0, t.created_at, t.completed_at);
+    .run(t.name, projectId, status, t.deadline, t.planned_date, t.is_today ? 1 : 0, t.created_at, t.completed_at);
   const taskId = Number(r.lastInsertRowid);
 
   const insertLog = db.prepare(

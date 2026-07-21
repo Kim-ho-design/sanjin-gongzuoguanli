@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { todayStr, isOverdue, weekCompletion } from '@/lib/utils';
-import type { Project, Task, Unclaimed } from '@/lib/types';
+import type { OverdueItem, Project, Task, Unclaimed } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,27 +36,44 @@ export async function GET() {
 
   const today = todayStr();
 
-  // 顶部聚合条 1：今日计划 = 星标/今天截止的父任务 + 计划今天且未完成的子任务
-  const todayCount =
-    tasks.filter((t) => t.status !== '已完成' && (t.is_today === 1 || t.deadline === today)).length +
-    subtasks.filter((t) => t.status !== '已完成' && t.planned_date === today).length;
+  // 本周完成率（口径见 weekCompletion：父看 deadline、子看 planned_date，分子只认「已完成」）
+  const { done: weekDone, total: weekPlan } = weekCompletion([...tasks, ...subtasks], today);
 
-  // 顶部聚合条 2：本周完成率（口径见 weekCompletion：只数父任务，分子只认「已完成」）
-  const { done: weekDone, total: weekPlan } = weekCompletion(tasks, today);
-
-  // 顶部聚合条 3：漂流瓶 = 超期未动（只认 deadline）+ 待认领
-  const overdue = tasks.filter((t) => isOverdue(t.deadline, t.status));
+  // 顶部聚合条 3：漂流瓶 = 超期未动 + 待认领
+  // 超期 = 父任务 deadline 过期 ∪ 子任务 planned_date 过期（子任务的计划日期即其截止语义）
+  const overdueItems: OverdueItem[] = [
+    ...tasks
+      .filter((t) => isOverdue(t.deadline, t.status))
+      .map((t) => ({
+        kind: 'task' as const,
+        id: t.id,
+        name: t.name,
+        date: t.deadline as string,
+        project_color: t.project_color ?? null,
+      })),
+    ...subtasks
+      .filter((t) => isOverdue(t.planned_date, t.status))
+      .map((t) => ({
+        kind: 'subtask' as const,
+        id: t.id,
+        parent_id: t.parent_task_id as number,
+        name: t.name,
+        parent_name: t.parent_name ?? '',
+        date: t.planned_date as string,
+        project_color: t.project_color ?? null,
+      })),
+  ].sort((a, b) => a.date.localeCompare(b.date)); // 最久的超期排前面
 
   return NextResponse.json({
     projects,
     tasks,
     subtasks,
     unclaimed,
+    overdue_items: overdueItems,
     stats: {
-      today_count: todayCount,
       week_plan: weekPlan,
       week_done: weekDone,
-      overdue_count: overdue.length,
+      overdue_count: overdueItems.length,
       unclaimed_count: unclaimed.length,
     },
   });

@@ -33,33 +33,41 @@ export function weekRange(dateStr: string): { start: string; end: string } {
   return { start, end };
 }
 
-/** 是否逾期：deadline 早于今天且任务未完结（待确认审核=已交付待验收，不算逾期） */
+/** 是否逾期：date 早于今天且任务未完成（父任务看 deadline，子任务看 planned_date） */
 export function isOverdue(deadline: string | null, status: string): boolean {
   if (!deadline) return false;
-  if (status === '已完成' || status === '待确认审核') return false;
+  if (status === '已完成') return false;
   return deadline < todayStr();
 }
 
-/** 本周完成率口径：分母 = deadline 落在本周的父任务（不论状态）；分子 = 其中「已完成」（待确认审核不计入） */
+/**
+ * 本周完成率口径（v7.1 起纳入子任务）：
+ * 分母 = deadline 落在本周的父任务 + planned_date 落在本周的子任务（不论状态）
+ * 分子 = 其中状态「已完成」的
+ */
 export function weekCompletion(
-  tasks: { deadline: string | null; status: string; parent_task_id: number | null }[],
+  tasks: { deadline: string | null; planned_date: string | null; status: string; parent_task_id: number | null }[],
   today: string,
 ): { done: number; total: number } {
   const { start, end } = weekRange(today);
-  const parents = tasks.filter(
-    (t) =>
-      t.parent_task_id === null &&
-      t.deadline !== null &&
-      t.deadline >= start &&
-      t.deadline <= end,
-  );
-  return { done: parents.filter((t) => t.status === '已完成').length, total: parents.length };
+  const inWeek = tasks.filter((t) => {
+    const date = t.parent_task_id === null ? t.deadline : t.planned_date; // 父看截止，子看计划
+    return date !== null && date >= start && date <= end;
+  });
+  return { done: inWeek.filter((t) => t.status === '已完成').length, total: inWeek.length };
 }
 
 export function inRange(dateStr: string | null, start: string, end: string): boolean {
   if (!dateStr) return false;
   const day = dateStr.slice(0, 10);
   return day >= start && day <= end;
+}
+
+/** 严格校验：YYYY-MM-DD 格式且为真实存在的日期 */
+export function isValidDateStr(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00`);
+  return !Number.isNaN(d.getTime()) && toDateStr(d) === s;
 }
 
 const WEEKDAYS_CN = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const;
@@ -70,28 +78,27 @@ export function weekdayCn(dateStr: string): string {
   return Number.isNaN(d.getTime()) ? '' : WEEKDAYS_CN[d.getDay()];
 }
 
-/** 今日计划分组：父任务满足今日条件（星标/今天截止）或有今日到期的未完成子任务 → 成组返回 */
-export function groupTodayItems<
-  T extends { id: number; status: string; is_today: number; deadline: string | null },
-  S extends { status: string; planned_date: string | null; parent_task_id: number | null },
->(tasks: T[], subtasks: S[], today: string): { task: T; subs: S[] }[] {
-  const subsByParent = new Map<number, S[]>();
-  for (const s of subtasks) {
-    if (s.parent_task_id === null) continue;
-    if (s.status === '已完成' || s.planned_date !== today) continue;
-    const arr = subsByParent.get(s.parent_task_id) ?? [];
-    arr.push(s);
-    subsByParent.set(s.parent_task_id, arr);
-  }
-  const groups: { task: T; subs: S[] }[] = [];
+/** 自动统计看板分列（v8）：父任务看 deadline、子任务看 planned_date；未完结=状态≠已完成 */
+export function splitByProgress<
+  T extends { deadline: string | null; planned_date: string | null; status: string; parent_task_id: number | null },
+>(tasks: T[], today: string): { todo: T[]; doing: T[]; done: T[] } {
+  const todo: T[] = [];
+  const doing: T[] = [];
+  const done: T[] = [];
+  const dateOf = (t: T) => (t.parent_task_id === null ? t.deadline : t.planned_date);
   for (const t of tasks) {
-    const isToday = t.status !== '已完成' && (t.is_today === 1 || t.deadline === today);
-    const subs = subsByParent.get(t.id) ?? [];
-    if (isToday || subs.length > 0) groups.push({ task: t, subs });
+    if (t.status === '已完成') {
+      done.push(t);
+      continue;
+    }
+    const date = dateOf(t);
+    // 待启动 = 日期在未来或无日期；进行中 = 日期≤今天（含超期）
+    if (date === null || date > today) todo.push(t);
+    else doing.push(t);
   }
-  // 星标父任务置顶
-  groups.sort((a, b) => (b.task.is_today ?? 0) - (a.task.is_today ?? 0));
-  return groups;
+  // 超期置顶：进行中按日期升序（最久超期在最前）
+  doing.sort((a, b) => (dateOf(a) ?? '').localeCompare(dateOf(b) ?? ''));
+  return { todo, doing, done };
 }
 
 /** 补记兜底：日志有内容但任务列表为空时，生成一条可编辑的预填任务（名称取日志内容摘要） */
@@ -100,7 +107,7 @@ export function prefillTaskFromLog(logContent: string): ParsedTask {
   return {
     name: summary || '补记的工作',
     matched_existing: false,
-    status: '待确认审核',
+    status: '已完成',
     deadline: null,
     parent_task_name: null,
     subtasks: [],

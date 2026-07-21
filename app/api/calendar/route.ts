@@ -29,14 +29,14 @@ export async function GET(req: NextRequest) {
   const due = db
     .prepare(
       `SELECT deadline AS day, COUNT(*) AS c FROM tasks
-       WHERE deadline IS NOT NULL AND strftime('%Y-%m', deadline) = ? GROUP BY deadline`,
+       WHERE deadline IS NOT NULL AND status != '已完成' AND strftime('%Y-%m', deadline) = ? GROUP BY deadline`,
     )
     .all(month) as { day: string; c: number }[];
 
   const planned = db
     .prepare(
       `SELECT planned_date AS day, COUNT(*) AS c FROM tasks
-       WHERE planned_date IS NOT NULL AND strftime('%Y-%m', planned_date) = ? GROUP BY planned_date`,
+       WHERE planned_date IS NOT NULL AND status != '已完成' AND strftime('%Y-%m', planned_date) = ? GROUP BY planned_date`,
     )
     .all(month) as { day: string; c: number }[];
 
