@@ -68,7 +68,7 @@ describe('applyParseResult · 子任务落库', () => {
     expect(subs[0]).toMatchObject({
       name: '第一步',
       project_id: projectId, // 项目继承父任务
-      status: '待办事项',
+      status: '待启动',
       planned_date: '2026-07-21',
       deadline: null,
       is_today: 0,

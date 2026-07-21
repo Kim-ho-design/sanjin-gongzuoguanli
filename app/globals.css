@@ -28,33 +28,110 @@
 :root {
   --background: #f5f8ff;
   --foreground: #1a1d2e;
+  /* 阴影分级：卡片浮于底 / 浮层浮于卡 / 按钮品牌蓝 */
+  --shadow-card: 0 1px 2px rgba(16, 24, 64, 0.04), 0 4px 16px rgba(16, 24, 64, 0.06);
+  --shadow-pop: 0 8px 30px rgba(16, 24, 64, 0.16);
+  --shadow-btn: 0 2px 8px rgba(62, 129, 246, 0.35);
 }
 
 body {
-  background: var(--background);
+  background: linear-gradient(180deg, #f7faff 0%, #f1f5fe 100%);
   color: var(--foreground);
   font-family: 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
 /* ASCII 字符纹理背景（致敬 Kimi 海报）：极淡蓝色字符网格 */
 .ascii-bg {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.045'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.045'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.04'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.045'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%233375F6' fill-opacity='0.05'%3EK%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.05'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.045'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.045'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.04'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.045'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%233E81F6' fill-opacity='0.05'%3EK%3C/text%3E%3C/svg%3E");
 }
 
-/* 面板与卡片：白色 + 细线条描边 */
+/* 极淡像素点阵纹理（叠加在 ascii-bg 字符纹理之上，不抢戏） */
+.pixel-dots {
+  background-image: radial-gradient(rgba(62, 129, 246, 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* 面板与卡片：白色 + 细线条描边 + 分级投影 */
 .panel {
   background: #ffffff;
   border: 1px solid #e3e9fb;
-  border-radius: 10px;
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+}
+.shadow-pop {
+  box-shadow: var(--shadow-pop);
+}
+.shadow-btn {
+  box-shadow: var(--shadow-btn);
+}
+/* 周视图"今天"列：品牌蓝 2px 描边（配合极淡呼吸光晕） */
+.today-col {
+  border: 2px solid #3e81f6 !important;
 }
 .line-card {
   background: #ffffff;
   border: 1px solid #e3e9fb;
-  border-radius: 10px;
+  border-radius: 12px;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .line-card:hover {
   border-color: #a5b4fc;
+}
+
+/* ---- v8 动效（ prefers-reduced-motion 下统一关闭，见文件末尾） ---- */
+/* 卡片 hover 轻微浮起 */
+.card-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(26, 29, 46, 0.1);
+}
+/* 拖拽中卡片微倾斜（DragOverlay） */
+.dragging-tilt {
+  transform: rotate(2deg);
+}
+/* 今天列：品牌蓝呼吸光晕（v8.1 调淡，干净克制） */
+@keyframes breathe-glow {
+  0%, 100% { box-shadow: 0 1px 2px rgba(16, 24, 64, 0.04), 0 0 0 0 rgba(62, 129, 246, 0); }
+  50% { box-shadow: 0 1px 2px rgba(16, 24, 64, 0.04), 0 0 14px 1px rgba(62, 129, 246, 0.28); }
+}
+.breathe-glow {
+  animation: breathe-glow 3.6s ease-in-out infinite;
+}
+/* 超期⚠：缓慢红色脉冲 */
+@keyframes overdue-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.overdue-pulse {
+  animation: overdue-pulse 2.8s ease-in-out infinite;
+}
+/* 周切换内容淡入滑动 */
+@keyframes week-enter {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+.week-enter {
+  animation: week-enter 0.25s ease;
+}
+/* 首屏区块交错浮入（配合 style animationDelay 做 stagger）
+ * 注意：不能用 fill-mode both/forwards——完成的动画持续声明 transform 会让 Chrome 保留堆叠上下文，
+ * 导致内部浮层被后续兄弟区块遮挡（v8.1 浮层 z-index bug 的根因） */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.fade-up {
+  animation: fade-up 0.4s ease backwards;
+}
+/* 浮层弹出：轻微缩放 + 淡入 */
+@keyframes pop-enter {
+  from { opacity: 0; transform: scale(0.96) translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+.pop-enter {
+  animation: pop-enter 0.15s ease;
 }
 
 /* 像素风渲染：放大时保持硬边 */
@@ -92,7 +169,7 @@ body {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3375f6;
+  background: #3e81f6;
 }
 
 /* 输入控件统一样式（类名保留 input-dark，样式为亮色） */
@@ -105,8 +182,28 @@ body {
   color: #1a1d2e;
 }
 .input-dark:focus {
-  border-color: #3375f6;
+  border-color: #3e81f6;
 }
 .input-dark::placeholder {
   color: #9aa3c0;
+}
+
+/* 无障碍：用户系统开启"减少动态效果"时，全站动效自动关闭 */
+@media (prefers-reduced-motion: reduce) {
+  .breathe-glow,
+  .overdue-pulse,
+  .week-enter,
+  .fade-up,
+  .pop-enter,
+  .pixel-blink,
+  .led-glow {
+    animation: none !important;
+  }
+  .card-lift,
+  .card-lift:hover,
+  .line-card,
+  .dragging-tilt {
+    transition: none !important;
+    transform: none !important;
+  }
 }

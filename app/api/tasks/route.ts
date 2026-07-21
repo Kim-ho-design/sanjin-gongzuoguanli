@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { TASK_STATUSES } from '@/lib/types';
+import { nowStr, isValidDateStr } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,8 +34,15 @@ export async function POST(req: NextRequest) {
   if (!projectId) {
     return NextResponse.json({ error: '任务名和项目必填' }, { status: 400 });
   }
+  // 日期校验：格式必须合法；父任务不使用 planned_date（忽略，排期走子任务）、子任务 deadline 恒 null
+  if (body.deadline && !parentId && !isValidDateStr(body.deadline)) {
+    return NextResponse.json({ error: 'deadline 格式应为 YYYY-MM-DD' }, { status: 400 });
+  }
+  if (body.planned_date && parentId && !isValidDateStr(body.planned_date)) {
+    return NextResponse.json({ error: 'planned_date 格式应为 YYYY-MM-DD' }, { status: 400 });
+  }
   const status = TASK_STATUSES.includes(body.status as never) ? body.status : '待启动';
-  const completedAt = status === '已完成' || status === '待确认审核' ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null;
+  const completedAt = status === '已完成' ? nowStr() : null;
   const r = db
     .prepare(
       `INSERT INTO tasks (name, project_id, status, deadline, planned_date, parent_task_id, is_today, completed_at)
@@ -45,7 +53,7 @@ export async function POST(req: NextRequest) {
       projectId,
       status,
       parentId ? null : body.deadline || null,
-      body.planned_date || null,
+      parentId ? body.planned_date || null : null,
       parentId,
       parentId ? 0 : body.is_today ? 1 : 0,
       completedAt,

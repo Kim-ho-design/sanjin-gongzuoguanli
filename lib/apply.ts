@@ -48,7 +48,7 @@ function findProject(name: string): { id: number; name: string } | null {
 function createTask(pt: ParsedTask, projectId: number, parentTaskId: number | null, doneAt: string | null): number {
   const db = getDb();
   const status = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '待启动';
-  const completedAt = status === '已完成' || status === '待确认审核' ? (doneAt ?? nowStr()) : null;
+  const completedAt = status === '已完成' ? (doneAt ?? nowStr()) : null;
   const r = db
     .prepare(
       `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, completed_at)
@@ -63,7 +63,7 @@ function createSubtasks(pt: ParsedTask, parentId: number, projectId: number) {
   const db = getDb();
   const insert = db.prepare(
     `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today)
-     VALUES (?, ?, '待办事项', NULL, ?, 0, ?, 0)`,
+     VALUES (?, ?, '待启动', NULL, ?, 0, ?, 0)`,
   );
   for (const st of pt.subtasks) {
     if (st.name.trim()) insert.run(st.name.trim(), projectId, st.planned_date, parentId);
@@ -172,9 +172,9 @@ export function applyParseResult(
 
   if (parsed.intent === 'update_task') {
     for (const { pt, id } of resolvedTaskIds) {
-      const target = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '待确认审核';
+      const target = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '已完成';
       db.prepare(
-        `UPDATE tasks SET status = ?, completed_at = CASE WHEN ? IN ('已完成','待确认审核') THEN ? ELSE completed_at END WHERE id = ?`,
+        `UPDATE tasks SET status = ?, completed_at = CASE WHEN ? = '已完成' THEN ? ELSE completed_at END WHERE id = ?`,
       ).run(target, target, logAt ?? nowStr(), id);
       summary.actions.push(`任务状态 → ${target}`);
     }
