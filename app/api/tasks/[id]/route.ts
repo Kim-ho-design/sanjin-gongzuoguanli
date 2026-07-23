@@ -76,8 +76,28 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (body.status === '已完成') {
       sets.push('completed_at = ?');
       vals.push(nowStr());
-    } else if (existing.status === '已完成') {
-      sets.push('completed_at = NULL');
+      // 父任务完成 → 未完成的子任务一并完成，原状态存入 prev_status 供重新打开时恢复
+      if (existing.parent_task_id === null) {
+        db.prepare(
+          `UPDATE tasks SET prev_status = status, status = '已完成', completed_at = ?
+           WHERE parent_task_id = ? AND status != '已完成'`,
+        ).run(nowStr(), params.id);
+      }
+    } else {
+      if (existing.status === '已完成') {
+        sets.push('completed_at = NULL');
+        // 父任务重新打开 → 恢复上次被级联完成的子任务到各自原状态
+        if (existing.parent_task_id === null) {
+          db.prepare(
+            `UPDATE tasks SET status = prev_status, completed_at = NULL, prev_status = NULL
+             WHERE parent_task_id = ? AND prev_status IS NOT NULL AND status = '已完成'`,
+          ).run(params.id);
+        }
+      }
+      // 子任务被单独改状态 → 清掉 prev_status，避免脏数据导致误恢复
+      if (existing.parent_task_id !== null) {
+        sets.push('prev_status = NULL');
+      }
     }
   }
   if (body.deadline !== undefined) {

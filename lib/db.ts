@@ -37,7 +37,8 @@ export const SCHEMA_SQL = `
       parent_task_id INTEGER REFERENCES tasks(id),
       is_today INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-      completed_at TEXT
+      completed_at TEXT,
+      prev_status TEXT
     );
     CREATE TABLE IF NOT EXISTS logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,6 +118,12 @@ function createDb(): Database.Database {
      WHERE status = '待确认审核'`,
   ).run();
   db.prepare(`UPDATE tasks SET status = '待启动' WHERE status = '待办事项'`).run();
+
+  // v9 迁移：tasks 加 prev_status 列（父任务级联完成时记录子任务原状态，重新打开时恢复）
+  const hasPrevStatus = (db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[]).some(
+    (c) => c.name === 'prev_status',
+  );
+  if (!hasPrevStatus) db.exec(`ALTER TABLE tasks ADD COLUMN prev_status TEXT`);
 
   // 首次启动：写入预置项目
   const count = (db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }).c;

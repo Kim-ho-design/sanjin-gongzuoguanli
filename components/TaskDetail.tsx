@@ -278,9 +278,19 @@ export default function TaskDetail({
                       </svg>
                     )}
                   </button>
-                  <span className={`text-xs flex-1 min-w-0 truncate ${done ? 'line-through text-ink-faint' : 'text-ink-soft'}`}>
-                    {st.name}
-                  </span>
+                  <input
+                    key={`sub-name-${st.id}-${st.name}`}
+                    defaultValue={st.name}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v && v !== st.name) patchSub(st.id, { name: v });
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                    title="子任务名称（可改，失焦保存）"
+                    className={`text-xs flex-1 min-w-0 bg-transparent outline-none border-b border-transparent focus:border-kimi-400 transition-colors ${
+                      done ? 'line-through text-ink-faint' : 'text-ink-soft'
+                    }`}
+                  />
                   <input
                     type="date"
                     value={st.planned_date ?? ''}

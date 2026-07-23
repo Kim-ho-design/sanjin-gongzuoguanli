@@ -14,7 +14,7 @@ work-os：个人工作进度管理看板。自然语言录入（DeepSeek 解析�
 
 - Next.js 14 App Router + TypeScript + Tailwind（品牌蓝 `#3E81F6`，`kimi` 色阶 500 锚点）
 - better-sqlite3（WAL），库文件 `data/work-os.db`（gitignored）；`lib/db.ts` 单例 `getDb()`，建表 SQL 导出为 `SCHEMA_SQL`
-- 迁移 v4~v8 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**
+- 迁移 v4~v9 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）
 - DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）
 - 测试：Vitest（`npm test`），`lib/__tests__/`
 
@@ -32,6 +32,7 @@ lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply r
 ## 核心业务口径（改代码前必读）
 
 - **状态集**（v8）：待启动 / 进行中 / 已完成，仅三个。待启动/进行中由日期自动体现，不手动切换；详情页只有「标记完成 / 重新打开」
+- **级联完成**（v9，PATCH /api/tasks/[id]）：父任务标记完成 → 未完成子任务一并完成（原状态存 prev_status，completed_at 同步）；父任务重新打开 → 仅 prev_status 非空的子任务恢复原状态并清空完成时间，手动完成的不动；子任务单独改状态会清掉自己的 prev_status 防误恢复
 - **自动分列**（`splitByProgress`）：待启动 = 未完结且(日期>今天或无日期)；进行中 = 未完结且日期≤今天（含超期置顶）；已完成。父看 deadline、子看 planned_date
 - **超期**：`isOverdue` 父看 deadline、子看 planned_date，过期未完成即算；TopBar 漂流瓶与周报"漂流瓶"同口径（`collectReportData.drifting`）
 - **本周进度**（`weekCompletion`）：分母 = deadline∈本周(周一~周日)父任务 + planned_date∈本周子任务；分子 = 其中已完成；TopBar 主显示百分比
