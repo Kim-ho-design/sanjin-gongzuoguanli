@@ -40,8 +40,8 @@ function intensity(s: DayStat | undefined): number {
   return 4;
 }
 
-// 预警式热力：蓝(轻) → 黄 → 橙 → 红(最重)
-const HEAT = ['bg-transparent', 'bg-kimi-100', 'bg-amber-200', 'bg-orange-300', 'bg-red-400'];
+// 工作量热力：品牌蓝色阶递进（轻 → 重）
+const HEAT = ['bg-transparent', 'bg-kimi-100', 'bg-kimi-300', 'bg-kimi-500', 'bg-kimi-700'];
 
 export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => {
@@ -106,13 +106,13 @@ export default function CalendarPage() {
         <div className="panel p-4 flex-1 min-w-0">
           <div className="flex items-center justify-between mb-3">
             <button onClick={() => shiftMonth(-1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">‹</button>
-            <p className="font-mono text-sm font-bold tracking-wider">{mStr}</p>
+            <p className="font-mono text-base font-bold tracking-wider">{mStr}</p>
             <button onClick={() => shiftMonth(1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">›</button>
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-1">
             {WEEK_LABELS.map((w) => (
-              <p key={w} className="text-center text-[10px] font-mono text-ink-faint py-1">{w}</p>
+              <p key={w} className="text-center text-xs font-mono text-ink-faint py-1">{w}</p>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -122,6 +122,7 @@ export default function CalendarPage() {
               const heat = intensity(s);
               const isToday = d === today;
               const isSelected = d === selected;
+              const onDark = heat >= 3; // 深色热力格上文字转白
               return (
                 <button
                   key={d}
@@ -130,16 +131,16 @@ export default function CalendarPage() {
                     isSelected ? 'border-kimi-500 ring-1 ring-kimi-500/50' : 'border-line hover:border-kimi-300'
                   }`}
                 >
-                  <span className={`text-[11px] font-mono ${isToday ? 'text-white bg-kimi-500 rounded-full w-5 h-5 flex items-center justify-center' : 'text-ink-soft'}`}>
+                  <span className={`text-sm font-mono ${isToday ? 'text-white bg-kimi-500 rounded-full w-6 h-6 flex items-center justify-center' : onDark ? 'text-white' : 'text-ink-soft'}`}>
                     {Number(d.slice(8))}
                   </span>
                   {s && (s.log_count > 0 || s.completed > 0 || s.due > 0 || s.planned > 0) && (
-                    <span className="mt-auto flex flex-wrap gap-x-1.5 text-[9px] font-mono leading-tight">
-                      {s.hours > 0 && <span className="text-kimi-600">{s.hours}h</span>}
-                      {s.log_count > 0 && <span className="text-ink-soft">✎{s.log_count}</span>}
-                      {s.completed > 0 && <span className="text-emerald-600">✓{s.completed}</span>}
-                      {s.due > 0 && <span className={d < today ? 'text-red-500' : 'text-amber-600'}>截{s.due}</span>}
-                      {s.planned > 0 && s.due === 0 && <span className="text-ink-faint">计{s.planned}</span>}
+                    <span className="mt-auto flex flex-wrap gap-x-1.5 text-[11px] font-mono leading-tight">
+                      {s.hours > 0 && <span className={onDark ? 'text-white' : 'text-kimi-600'}>{s.hours}h</span>}
+                      {s.log_count > 0 && <span className={onDark ? 'text-white/90' : 'text-ink-soft'}>✎{s.log_count}</span>}
+                      {s.completed > 0 && <span className={onDark ? 'text-white' : 'text-bean-green'}>✓{s.completed}</span>}
+                      {s.due > 0 && <span className={onDark ? 'text-white' : d < today ? 'text-bean-orange' : 'text-bean-steel'}>截{s.due}</span>}
+                      {s.planned > 0 && s.due === 0 && <span className={onDark ? 'text-white/80' : 'text-ink-faint'}>计{s.planned}</span>}
                     </span>
                   )}
                 </button>
@@ -148,10 +149,10 @@ export default function CalendarPage() {
           </div>
 
           {/* 图例 */}
-          <div className="flex items-center gap-3 mt-3 text-[10px] font-mono text-ink-faint">
+          <div className="flex items-center gap-3 mt-3 text-xs font-mono text-ink-faint">
             <span>工作量：</span>
             {[1, 2, 3, 4].map((i) => (
-              <span key={i} className={`w-3 h-3 rounded ${HEAT[i]} border border-line`} />
+              <span key={i} className={`w-3.5 h-3.5 rounded ${HEAT[i]} border border-line`} />
             ))}
             <span className="ml-2">✎记录 ✓完成 h耗时 截截止 计计划</span>
           </div>
@@ -160,7 +161,7 @@ export default function CalendarPage() {
         {/* 当天详情 */}
         <div className="panel p-4 w-80 shrink-0 max-h-[calc(100vh-120px)] overflow-y-auto">
           {!selected && (
-            <p className="text-xs text-ink-faint text-center py-10">点一天查看当天详情</p>
+            <p className="text-sm text-ink-faint text-center py-10">点一天查看当天详情</p>
           )}
           {selected && loadingDetail && (
             <p className="text-center py-10"><PixelLoader /></p>
@@ -171,9 +172,9 @@ export default function CalendarPage() {
 
               {detail.completed.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-mono text-emerald-600 tracking-wider mb-1">✓ 当天完成</p>
+                  <p className="text-xs font-mono text-bean-green tracking-wider mb-1">✓ 当天完成</p>
                   {detail.completed.map((t) => (
-                    <p key={t.id} className="text-xs py-0.5 flex items-center gap-1.5">
+                    <p key={t.id} className="text-sm py-0.5 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color }} />
                       {t.name}
                     </p>
@@ -182,18 +183,18 @@ export default function CalendarPage() {
               )}
 
               <div className="mb-3">
-                <p className="text-[10px] font-mono text-ink-faint tracking-wider mb-1">✎ 进展记录（{detail.logs.length}）</p>
-                {detail.logs.length === 0 && <p className="text-xs text-ink-faint">当天没有记录</p>}
+                <p className="text-xs font-mono text-ink-faint tracking-wider mb-1">✎ 进展记录（{detail.logs.length}）</p>
+                {detail.logs.length === 0 && <p className="text-sm text-ink-faint">当天没有记录</p>}
                 {detail.logs.map((l) => (
                   <div key={l.id} className="border-l-2 border-kimi-200 pl-2 py-1 mb-1.5">
-                    <p className="text-[10px] font-mono text-ink-faint">
+                    <p className="text-[11px] font-mono text-ink-faint">
                       {l.created_at.slice(11, 16)} · {l.project_name} · {l.task_name}
                     </p>
-                    <p className="text-xs leading-snug">{l.raw_text}</p>
+                    <p className="text-sm leading-snug">{l.raw_text}</p>
                     {(l.duration_hours || l.blocker) && (
-                      <p className="text-[10px] font-mono">
+                      <p className="text-[11px] font-mono">
                         {l.duration_hours ? <span className="text-ink-soft">{l.duration_hours}h </span> : null}
-                        {l.blocker ? <span className="text-red-500">卡点：{l.blocker}</span> : null}
+                        {l.blocker ? <span className="text-bean-orange">卡点：{l.blocker}</span> : null}
                       </p>
                     )}
                   </div>
@@ -202,9 +203,9 @@ export default function CalendarPage() {
 
               {detail.due.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-mono text-amber-600 tracking-wider mb-1">⚑ 对外截止</p>
+                  <p className="text-xs font-mono text-bean-steel tracking-wider mb-1">⚑ 对外截止</p>
                   {detail.due.map((t) => (
-                    <p key={t.id} className="text-xs py-0.5">
+                    <p key={t.id} className="text-sm py-0.5">
                       {t.name} <span className="text-ink-faint">（{t.status}）</span>
                     </p>
                   ))}
@@ -213,9 +214,9 @@ export default function CalendarPage() {
 
               {detail.planned.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-mono text-kimi-600 tracking-wider mb-1">◷ 我的计划</p>
+                  <p className="text-xs font-mono text-kimi-600 tracking-wider mb-1">◷ 我的计划</p>
                   {detail.planned.map((t) => (
-                    <p key={t.id} className="text-xs py-0.5">
+                    <p key={t.id} className="text-sm py-0.5">
                       {t.name} <span className="text-ink-faint">（{t.status}）</span>
                     </p>
                   ))}

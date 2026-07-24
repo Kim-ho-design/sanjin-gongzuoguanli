@@ -22,7 +22,7 @@
 
 ## 技术栈
 
-Next.js 14（App Router）· TypeScript · Tailwind（品牌蓝 #3E81F6）· better-sqlite3（WAL）· DeepSeek API · dnd-kit · Vitest
+Next.js 14（App Router）· TypeScript · Tailwind（拼豆配色，主色 #305FB9）· better-sqlite3（WAL）· DeepSeek API · dnd-kit · Vitest
 
 ## 本地开发
 

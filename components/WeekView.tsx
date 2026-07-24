@@ -88,8 +88,8 @@ export default function WeekView({
           small ? 'w-3 h-3' : 'w-3.5 h-3.5'
         } ${
           done
-            ? 'bg-emerald-500 border-emerald-500 text-white'
-            : 'border-line text-transparent hover:!border-emerald-400 hover:!text-emerald-400 opacity-0 group-hover:opacity-100'
+            ? 'bg-bean-green border-bean-green text-white'
+            : 'border-line text-transparent hover:!border-bean-green hover:!text-bean-green opacity-0 group-hover:opacity-100'
         }`}
       >
         <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
@@ -121,10 +121,10 @@ export default function WeekView({
         onClick={() => onOpen(isSub ? (t.parent_task_id as number) : t.id)}
         className={`line-card card-lift group w-full text-left p-2 mb-1.5 cursor-grab active:cursor-grabbing select-none ${
           done ? 'opacity-45' : ''
-        } ${overdue || beyondParent ? '!border-red-300 !bg-red-50' : ''}`}
+        } ${overdue || beyondParent ? '!border-bean-orange/60 !bg-bean-orange/10' : ''}`}
       >
         <div className="flex items-center gap-1 mb-0.5">
-          <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color || '#3E81F6' }} />
+          <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color || '#305FB9' }} />
           <span className="text-[9px] text-ink-faint truncate">{t.project_name}</span>
           <span className="ml-auto shrink-0">
             <ToggleBtn t={t} />
@@ -137,12 +137,12 @@ export default function WeekView({
         {(overdue || beyondParent) && (
           <div className="flex flex-wrap items-center gap-1 mt-1">
             {overdue && (
-              <span className="text-[9px] font-mono text-red-500 border border-red-300 bg-red-50 rounded px-1 leading-3 overdue-pulse">
+              <span className="text-[9px] font-mono text-bean-orange border border-bean-orange/60 bg-bean-orange/10 rounded px-1 leading-3 overdue-pulse">
                 超期⚠
               </span>
             )}
             {beyondParent && (
-              <span className="text-[9px] font-mono text-red-500 border border-red-300 bg-red-50 rounded px-1 leading-3">
+              <span className="text-[9px] font-mono text-bean-orange border border-bean-orange/60 bg-bean-orange/10 rounded px-1 leading-3">
                 超出父截止⚠
               </span>
             )}
@@ -163,7 +163,7 @@ export default function WeekView({
                     {s.name}
                   </span>
                   {(sOverdue || sBeyond) && (
-                    <span className="ml-auto text-[9px] font-mono text-red-500 font-bold shrink-0">⚠</span>
+                    <span className="ml-auto text-[9px] font-mono text-bean-orange font-bold shrink-0">⚠</span>
                   )}
                 </div>
               );
@@ -241,7 +241,7 @@ export default function WeekView({
             onClick={() => setLaneOpen((v) => !v)}
             className={`ml-auto text-[11px] border rounded-full px-2.5 py-0.5 font-mono transition-colors ${
               laneOpen || unscheduled.length > 0
-                ? 'border-amber-300 text-amber-600'
+                ? 'border-bean-orange/60 text-bean-orange'
                 : 'border-line text-ink-faint hover:border-kimi-400'
             }`}
             title="无日期的任务，可拖入日期列排期"
@@ -255,8 +255,8 @@ export default function WeekView({
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* 拖欠横条：日期早于本周一的任务，可拖入本周某天 */}
         {backlog.length > 0 && (
-          <div className="mb-2 rounded-2xl border border-red-200 bg-red-50/60 px-3 py-2">
-            <p className="text-[10px] font-mono text-red-500 tracking-wider mb-1.5">
+          <div className="mb-2 rounded-2xl border border-bean-orange/40 bg-bean-orange/10 px-3 py-2">
+            <p className="text-[10px] font-mono text-bean-orange tracking-wider mb-1.5">
               拖欠（{backlog.length}）· 拖到某天完成排期
             </p>
             <div className="flex gap-1.5 overflow-x-auto pb-0.5">

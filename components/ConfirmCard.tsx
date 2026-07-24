@@ -115,8 +115,8 @@ export default function ConfirmCard({
 
         {/* 反问提示 */}
         {needChoice && (
-          <div className="mb-4 border border-amber-500/50 bg-amber-500/10 rounded-lg px-3 py-2">
-            <p className="text-xs text-amber-300">❓ {edited.clarify_question || '请确认归属'}</p>
+          <div className="mb-4 border border-bean-orange/50 bg-bean-orange/10 rounded-lg px-3 py-2">
+            <p className="text-xs text-bean-orange">❓ {edited.clarify_question || '请确认归属'}</p>
           </div>
         )}
 
@@ -156,7 +156,7 @@ export default function ConfirmCard({
               className="input-dark mt-2 w-full text-xs px-2.5 py-1.5"
             />
           )}
-          {projMissing && <p className="text-[10px] text-amber-400 mt-1">↑ 建任务需要选定一个项目</p>}
+          {projMissing && <p className="text-[10px] text-bean-orange mt-1">↑ 建任务需要选定一个项目</p>}
         </div>
 
         {/* 任务列表（可编辑） */}

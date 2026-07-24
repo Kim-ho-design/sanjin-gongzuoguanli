@@ -12,16 +12,16 @@ work-os：个人工作进度管理看板。自然语言录入（DeepSeek 解析�
 
 ## 技术栈与结构
 
-- Next.js 14 App Router + TypeScript + Tailwind（品牌蓝 `#3E81F6`，`kimi` 色阶 500 锚点）
+- Next.js 14 App Router + TypeScript + Tailwind（拼豆配色 v10 起：主色 C07 `#305FB9`，`kimi` 色阶 500 锚点；辅助色 `bean.*`：C06 天蓝/C26 钢青/B05 亮绿=完成/P17 橙=超期·卡点·反问/M01 灰/D16 浅薰衣草/B22 墨青；文字 H16 棕黑 `#191110`；错误/删除保留红色）
 - better-sqlite3（WAL），库文件 `data/work-os.db`（gitignored）；`lib/db.ts` 单例 `getDb()`，建表 SQL 导出为 `SCHEMA_SQL`
-- 迁移 v4~v9 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）
+- 迁移 v4~v10 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）；v10 品牌蓝 #3375F6→C07 #305FB9，项目预置色板换拼豆 8 色
 - DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）
 - 测试：Vitest（`npm test`），`lib/__tests__/`
 
 ```
 app/page.tsx     首页：TopBar 数据条 → InputBox → 项目筛选 → WeekView（主视图）→ 待认领
 app/week/        重定向到 /（已并入首页）
-app/calendar/    月视图（预警色阶热力）  app/report/  AI 周报  app/login/
+app/calendar/    月视图（品牌蓝色阶热力，深色格白字）  app/report/  AI 周报  app/login/
 app/api/         board / tasks(+[id]) / parse(+confirm) / projects / logs / deliverables
                  calendar(+day) / report / unclaimed([id]+claim+restore) / auth
 components/      TopBar(五格数据条+浮层) WeekView(周视图+拖拽+拖欠条+未排期)

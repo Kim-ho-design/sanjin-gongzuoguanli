@@ -240,14 +240,14 @@ export default function TaskDetail({
           {task.status === '已完成' ? (
             <button
               onClick={() => patch({ status: '待启动' })}
-              className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-amber-400 hover:text-amber-600 transition-colors"
+              className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-bean-orange hover:text-bean-orange transition-colors"
             >
               ↩ 重新打开
             </button>
           ) : (
             <button
               onClick={() => patch({ status: '已完成' })}
-              className="text-xs bg-emerald-500 text-white rounded-full px-3 py-1.5 hover:bg-emerald-400 transition-colors"
+              className="text-xs bg-bean-green text-white rounded-full px-3 py-1.5 hover:bg-bean-green/90 transition-colors"
             >
               ✓ 标记完成
             </button>
@@ -269,7 +269,7 @@ export default function TaskDetail({
                     onClick={() => toggleSub(st)}
                     title={done ? '取消完成' : '完成'}
                     className={`w-3.5 h-3.5 rounded-[3px] border shrink-0 flex items-center justify-center transition-colors ${
-                      done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-line hover:border-emerald-400'
+                      done ? 'bg-bean-green border-bean-green text-white' : 'border-line hover:border-bean-green'
                     }`}
                   >
                     {done && (
@@ -342,7 +342,7 @@ export default function TaskDetail({
               {(l.duration_hours || l.blocker) && (
                 <p className="text-[10px] font-mono mt-0.5">
                   {l.duration_hours ? <span className="text-ink-soft">{l.duration_hours}h </span> : null}
-                  {l.blocker ? <span className="text-red-400">卡点：{l.blocker}</span> : null}
+                  {l.blocker ? <span className="text-bean-orange">卡点：{l.blocker}</span> : null}
                 </p>
               )}
             </div>

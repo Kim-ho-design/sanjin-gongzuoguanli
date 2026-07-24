@@ -96,7 +96,7 @@ export default function UnclaimedPanel({
                 {snap ? (
                   /* 已删项目的任务：整体恢复到某个项目 */
                   <div>
-                    <p className="text-[10px] text-amber-500 mb-1.5">
+                    <p className="text-[10px] text-bean-steel mb-1.5">
                       来自已删项目「{snap.project_name}」，状态/日期/记录都已保留
                     </p>
                     <div className="flex gap-1.5">

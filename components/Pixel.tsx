@@ -23,8 +23,8 @@ const GLYPHS: Record<string, string[]> = {
 export function PixelNumber({
   value,
   size = 3,
-  color = '#3E81F6',
-  dimColor = '#DFEAFD',
+  color = '#305FB9',
+  dimColor = '#DCE7F7',
 }: {
   value: string;
   size?: number; // 每个点阵点的边长(px)
@@ -96,7 +96,7 @@ export function PixelLogo({ size = 28 }: { size?: number }) {
       {rows.map((row, y) =>
         row.split('').map((cell, x) =>
           cell === '1' ? (
-            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#3E81F6" />
+            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#305FB9" />
           ) : null,
         ),
       )}
@@ -130,7 +130,7 @@ export function PixelBottle({ size = 48 }: { size?: number }) {
       {rows.map((row, y) =>
         row.split('').map((cell, x) =>
           cell === '1' ? (
-            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#00237C" />
+            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#1839A8" />
           ) : null,
         ),
       )}
@@ -138,7 +138,7 @@ export function PixelBottle({ size = 48 }: { size?: number }) {
   );
 }
 
-export function PixelStar({ size = 14, color = '#F5A623' }: { size?: number; color?: string }) {
+export function PixelStar({ size = 14, color = '#E5983C' }: { size?: number; color?: string }) {
   // 5x5 像素星星
   const rows = ['00100', '01110', '11111', '01110', '01010'];
   return (
