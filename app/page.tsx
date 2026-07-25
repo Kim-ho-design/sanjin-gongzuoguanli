@@ -7,6 +7,7 @@ import type { ApplySummary } from '@/lib/apply';
 import TopBar, { BoardStats } from '@/components/TopBar';
 import WeekView from '@/components/WeekView';
 import InputBox from '@/components/InputBox';
+import QuickAdd from '@/components/QuickAdd';
 import ConfirmCard from '@/components/ConfirmCard';
 import TaskDetail from '@/components/TaskDetail';
 import UnclaimedPanel from '@/components/UnclaimedPanel';
@@ -209,9 +210,16 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 唯一输入口 */}
+        {/* 唯一输入口（AI）+ 手动快速新增（兜底，不走 AI） */}
         <div className="fade-up" style={{ animationDelay: '80ms' }}>
           <InputBox onParsed={handleParsed} />
+          <QuickAdd
+            projects={data?.projects ?? []}
+            onAdded={(n) => {
+              showToast(`任务「${n}」已创建`);
+              load();
+            }}
+          />
         </div>
 
         {/* 项目筛选 */}
