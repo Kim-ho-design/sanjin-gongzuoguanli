@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
 import { AvatarLogo, PixelLoader } from '@/components/Pixel';
 
 function toStr(d: Date): string {
@@ -198,9 +199,9 @@ export default function ReportPage() {
                 下载 .md
               </button>
             </div>
-            <pre className="whitespace-pre-wrap text-[13px] leading-relaxed font-mono text-ink">
-              {markdown}
-            </pre>
+            <div className="text-[14px] leading-relaxed text-ink report-md">
+              <ReactMarkdown>{markdown}</ReactMarkdown>
+            </div>
           </div>
         )}
 

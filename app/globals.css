@@ -207,3 +207,68 @@ body {
     transform: none !important;
   }
 }
+
+/* 周报 markdown 渲染排版（.report-md） */
+.report-md h1 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 4px 0 12px;
+  color: #191110;
+}
+.report-md h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 18px 0 8px;
+  padding-left: 8px;
+  border-left: 3px solid #305FB9;
+  color: #191110;
+}
+.report-md h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 12px 0 4px;
+  color: #191110;
+}
+.report-md p {
+  margin: 6px 0;
+}
+.report-md ul,
+.report-md ol {
+  margin: 6px 0 10px;
+  padding-left: 22px;
+}
+.report-md ul {
+  list-style: disc;
+}
+.report-md ol {
+  list-style: decimal;
+}
+.report-md li {
+  margin: 4px 0;
+}
+.report-md li::marker {
+  color: #305FB9;
+}
+.report-md strong {
+  font-weight: 700;
+  color: #191110;
+}
+.report-md hr {
+  border: none;
+  border-top: 1px solid #e3e9fb;
+  margin: 14px 0;
+}
+.report-md table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.report-md th,
+.report-md td {
+  border: 1px solid #e3e9fb;
+  padding: 4px 10px;
+  text-align: left;
+}
+.report-md th {
+  background: #f5f8ff;
+}

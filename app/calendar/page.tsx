@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AvatarLogo, PixelLoader } from '@/components/Pixel';
+import { pressureLevel, pressureScore, PRESSURE_LABELS } from '@/lib/pressure';
 
 interface DayStat {
   log_count: number;
@@ -29,19 +30,15 @@ function dateStr(d: Date): string {
   return `${monthStr(d)}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 工作量强度 0-4，决定格子底色深浅 */
-function intensity(s: DayStat | undefined): number {
-  if (!s) return 0;
-  const score = s.log_count + s.completed * 2 + (s.hours >= 4 ? 1 : 0);
-  if (score === 0) return 0;
-  if (score <= 1) return 1;
-  if (score <= 3) return 2;
-  if (score <= 5) return 3;
-  return 4;
-}
-
-// 工作量热力：品牌蓝色阶递进（轻 → 重）
-const HEAT = ['bg-transparent', 'bg-kimi-100', 'bg-kimi-300', 'bg-kimi-500', 'bg-kimi-700'];
+// 每日压力：天气预报式预警配色（v12 起）—— 灰无安排 / 蓝轻松 / 黄适中 / 橙偏忙 / 红高压
+// 评分规则见 lib/pressure.ts（耗时×1 + 完成×1 + 截止×2 + 计划×1 + 记录×0.3）
+const HEAT = [
+  'bg-transparent', // 0 灰 · 无安排
+  'bg-bean-sky/25', // 1 蓝 · 轻松
+  'bg-amber-300/50', // 2 黄 · 适中
+  'bg-bean-orange/85', // 3 橙 · 偏忙
+  'bg-red-500/85', // 4 红 · 高压
+];
 
 export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => {
@@ -119,14 +116,19 @@ export default function CalendarPage() {
             {cells.map((d, i) => {
               if (!d) return <div key={`e${i}`} />;
               const s = days[d];
-              const heat = intensity(s);
+              const heat = pressureLevel(s);
               const isToday = d === today;
               const isSelected = d === selected;
-              const onDark = heat >= 3; // 深色热力格上文字转白
+              const onDark = heat >= 3; // 橙/红深格上文字转白
               return (
                 <button
                   key={d}
                   onClick={() => selectDay(d)}
+                  title={
+                    s && heat > 0
+                      ? `${PRESSURE_LABELS[heat]}（压力 ${pressureScore(s).toFixed(1)}）｜耗时${s.hours}h 完成${s.completed} 截止${s.due} 计划${s.planned} 记录${s.log_count}`
+                      : undefined
+                  }
                   className={`aspect-square rounded-lg border text-left p-1.5 flex flex-col transition-colors ${HEAT[heat]} ${
                     isSelected ? 'border-kimi-500 ring-1 ring-kimi-500/50' : 'border-line hover:border-kimi-300'
                   }`}
@@ -148,14 +150,20 @@ export default function CalendarPage() {
             })}
           </div>
 
-          {/* 图例 */}
-          <div className="flex items-center gap-3 mt-3 text-xs font-mono text-ink-faint">
-            <span>工作量：</span>
-            {[1, 2, 3, 4].map((i) => (
-              <span key={i} className={`w-3.5 h-3.5 rounded ${HEAT[i]} border border-line`} />
+          {/* 图例：天气预报式压力等级 */}
+          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-3 text-xs font-mono text-ink-faint">
+            <span>压力：</span>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span key={i} className="flex items-center gap-1">
+                <span className={`w-3.5 h-3.5 rounded ${HEAT[i]} border border-line`} />
+                {PRESSURE_LABELS[i]}
+              </span>
             ))}
-            <span className="ml-2">✎记录 ✓完成 h耗时 截截止 计计划</span>
+            <span className="ml-1">✎记录 ✓完成 h耗时 截截止 计计划</span>
           </div>
+          <p className="mt-1 text-[11px] font-mono text-ink-faint/80">
+            压力分 = 耗时×1 + 完成×1 + 截止×2 + 计划×1 + 记录×0.3 ｜ 蓝&lt;2 ≤黄&lt;4.5 ≤橙&lt;7 ≤红（悬停格子看明细）
+          </p>
         </div>
 
         {/* 当天详情 */}
