@@ -25,6 +25,7 @@ export default function ReportPage() {
   const [preset, setPreset] = useState<number | 'custom'>(6);
   const [type, setType] = useState<'brief' | 'full'>('brief');
   const [markdown, setMarkdown] = useState('');
+  const [fallback, setFallback] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -44,6 +45,7 @@ export default function ReportPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '生成失败');
       setMarkdown(data.markdown);
+      setFallback(data.fallback === true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '生成失败');
     } finally {
@@ -51,10 +53,28 @@ export default function ReportPage() {
     }
   }
 
+  // v11：站点是 http://IP:3000 非安全上下文，navigator.clipboard 不可用，必须回退 execCommand
   async function copy() {
-    await navigator.clipboard.writeText(markdown);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      if (window.isSecureContext && navigator.clipboard) {
+        await navigator.clipboard.writeText(markdown);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = markdown;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (!ok) throw new Error('execCommand 被拒绝');
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('复制失败，请手动全选文本复制');
+    }
   }
 
   function download() {
@@ -155,6 +175,12 @@ export default function ReportPage() {
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
+
+        {markdown && fallback && (
+          <p className="text-xs text-bean-orange border border-bean-orange/40 rounded-lg px-3 py-2">
+            ⚠ AI 整理失败，以下为模板兜底版本（未做合并润色）。请检查 DeepSeek 配置后重新生成。
+          </p>
+        )}
 
         {markdown && (
           <div className="panel p-5">

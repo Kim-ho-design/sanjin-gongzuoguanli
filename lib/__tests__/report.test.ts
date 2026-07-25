@@ -1,8 +1,12 @@
 // 周报聚合层测试：独立 :memory: 库，globalThis 注入单例，不碰 data/；不打真实 LLM API
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Database from 'better-sqlite3';
 import { SCHEMA_SQL } from '../db';
-import { collectReportData, buildReportPrompt, renderTemplate } from '../report';
+
+// llm 模块整体 mock：generateReport 的成功/回退分支都由 callReport 的 mock 行为决定
+vi.mock('../llm', () => ({ callReport: vi.fn() }));
+import { callReport } from '../llm';
+import { collectReportData, buildReportPrompt, renderTemplate, generateReport } from '../report';
 
 const globalForDb = globalThis as unknown as { __workOsDb?: Database.Database };
 
@@ -128,5 +132,26 @@ describe('renderTemplate（兜底）', () => {
       expect(md).not.toContain('耗时');
       expect(md).toContain('## 下周计划');
     }
+  });
+});
+
+describe('generateReport · 回退可见（v11）', () => {
+  it('LLM 成功 → fallback=false 原文返回；LLM 失败 → fallback=true 且为模板内容', async () => {
+    const mocked = vi.mocked(callReport);
+    mocked.mockResolvedValueOnce('# AI 版周报');
+    const ok = await generateReport(START, END, 'brief');
+    expect(ok).toEqual({ markdown: '# AI 版周报', fallback: false });
+
+    mocked.mockRejectedValueOnce(new Error('DeepSeek API 错误（400）'));
+    const bad = await generateReport(START, END, 'brief');
+    expect(bad.fallback).toBe(true);
+    expect(bad.markdown).toContain('# 工作周报');
+    expect(bad.markdown).toContain('## 下周计划');
+  });
+
+  it('简版 prompt 含「一点内容一项工作」合并要求', () => {
+    const p = buildReportPrompt('brief');
+    expect(p).toContain('一点内容一项工作');
+    expect(p).toContain('合并');
   });
 });

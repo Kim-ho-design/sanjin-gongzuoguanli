@@ -17,6 +17,6 @@ export async function GET(req: NextRequest) {
   if (start > end) {
     return NextResponse.json({ error: '开始日期不能晚于结束日期' }, { status: 400 });
   }
-  const markdown = await generateReport(start, end, type);
-  return NextResponse.json({ markdown, type, start, end });
+  const { markdown, fallback } = await generateReport(start, end, type);
+  return NextResponse.json({ markdown, fallback, type, start, end });
 }

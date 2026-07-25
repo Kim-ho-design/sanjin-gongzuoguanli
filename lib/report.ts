@@ -141,6 +141,7 @@ export function collectReportData(start: string, end: string): ReportData {
 
 const LANGUAGE_RULES = `【语言硬性规则】
 - 用真实工作汇报的语言、陈述句描述每一项工作，就像本人亲手写的周报。
+- 一点内容一项工作：同一项工作的多条记录、多次进展必须合并整理成一条连贯的要点，一点只讲一项工作；禁止把 logs 里的原话逐条照搬成流水账。
 - 绝不出现"子任务""副任务""父任务""主任务"这类模板化术语。数据里的 sub_done / sub_total / open_subtasks 描述的是一项工作内部的执行步骤，直接把步骤的进展表述为该工作本身的一部分。例如不要写"子任务「初稿」已完成"，而要写"「XX方案」已完成初稿与排版，剩终审"。
 - 不编造数据里没有的事实、数字、日期；拿不准就不写。`;
 
@@ -159,8 +160,8 @@ ${LANGUAGE_RULES}`;
 
 【简版要求：向上汇报】
 - 结构：# 工作周报（区间） → ## 完成情况 → ## 下周计划
-- 完成情况：一句话一个点，先写完成的、再写推进中的，合计 ≤10 条
-- 下周计划：把 open_tasks 里的未完成工作平移组织成计划（可结合 deadline 和步骤推进情况排优先级），≤10 条
+- 完成情况：一句话一个点，一点内容一项工作（logs 里同一项工作的多条原话合并成该工作的一条要点），先写完成的、再写推进中的，合计 ≤10 条
+- 下周计划：把 open_tasks 里的未完成工作平移组织成计划（可结合 deadline 和步骤推进情况排优先级），一项工作一条，≤10 条
 - 不要"风险/卡点""耗时汇总""交付物"等独立区块
 - 只输出 markdown 正文，不要任何解释`;
   }
@@ -279,12 +280,19 @@ function renderFull(data: ReportData): string {
 
 /* ---------------- 入口 ---------------- */
 
+export interface ReportResult {
+  markdown: string;
+  /** true = LLM 生成失败，回退到了模板整理（页面需提示用户，避免"看着不像 AI 写的"却无处排查） */
+  fallback: boolean;
+}
+
 /** 按时间区间生成周报（start/end 为 YYYY-MM-DD，闭区间）；LLM 失败自动回退模板渲染 */
-export async function generateReport(start: string, end: string, type: ReportType): Promise<string> {
+export async function generateReport(start: string, end: string, type: ReportType): Promise<ReportResult> {
   const data = collectReportData(start, end);
   try {
-    return await callReport(buildReportPrompt(type), JSON.stringify(data));
-  } catch {
-    return renderTemplate(data, type);
+    return { markdown: await callReport(buildReportPrompt(type), JSON.stringify(data)), fallback: false };
+  } catch (e) {
+    console.warn('[report] LLM 生成失败，回退模板渲染：', e instanceof Error ? e.message : e);
+    return { markdown: renderTemplate(data, type), fallback: true };
   }
 }

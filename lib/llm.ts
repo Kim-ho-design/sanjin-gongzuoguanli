@@ -3,7 +3,9 @@ import type { ParseResult, ParseIntent } from './types';
 import { TASK_STATUSES } from './types';
 
 const API_URL = 'https://api.deepseek.com/chat/completions';
-const MODEL = 'deepseek-chat';
+// v11：deepseek-chat 已被平台下线（400 报错提示可用型号），默认换 deepseek-v4-flash；
+// 可用 DEEPSEEK_MODEL 环境变量覆盖（如 deepseek-v4-pro，带推理、更慢更贵）
+const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
 const INTENTS: ParseIntent[] = [
   'create_task',
