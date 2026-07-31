@@ -24,8 +24,8 @@ app/week/        重定向到 /（已并入首页）
 app/calendar/    月视图（品牌蓝色阶热力，深色格白字）  app/report/  AI 周报  app/login/
 app/api/         board / tasks(+[id]) / parse(+confirm) / projects / logs / deliverables
                  calendar(+day) / report / unclaimed([id]+claim+restore) / auth
-components/      TopBar(五格数据条+浮层) WeekView(周视图+拖拽+拖欠条+未排期)
-                 TaskDetail(详情抽屉) InputBox ConfirmCard UnclaimedPanel Pixel
+components/      TopBar(五格数据条+浮层；移动端两行) WeekView(周视图+拖拽+拖欠条+未排期；移动端单列纵排+触屏禁拖拽)
+                 TaskDetail(详情抽屉；移动端底部弹出 bottom sheet) InputBox(移动端吸底) ConfirmCard UnclaimedPanel Pixel
 lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply report auth
 ```
 
@@ -42,6 +42,13 @@ lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply r
 - **时间词必落日期**（prompt 规则 9）：一次性事项填 deadline，拆分语义进 subtasks.planned_date
 - **周报**：`collectReportData`（聚合）→ DeepSeek（brief/full）→ 失败回退模板；下周计划 = 未完成平移；无"风险/卡点"区块；prompt 禁"子任务/父任务"术语
 - **已废弃**：父任务 planned_date（列保留，v7 已清空）、is_plan_item、is_today（死字段，API 兼容接收但不读取）、耗时/交付物/卡点录入（DB 列保留只读）、五列拖拽看板、今日计划侧栏
+
+## 移动端适配（v14）
+
+- 一套代码响应式，`md`（768px）断点分界；触屏判定用 `pointer: coarse`（WeekView 的 `useCoarsePointer`）
+- 周视图移动端单列纵排；触屏禁拖拽（不挂 listeners），✓ 按钮常驻放大；输入框移动端 fixed 吸底（首页 pb-24 防遮挡）
+- TaskDetail / UnclaimedPanel 移动端 bottom sheet（`inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl`，md 以上还原右侧抽屉）
+- 验收标准（本项目"绿"的定义）：`npm test` + `npm run build` 零错误 + 390px 手机宽度与 1280px 桌面截图冒烟（截图存 `反馈截图/`）
 
 ## 已知遗留
 
@@ -60,7 +67,7 @@ lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply r
 ## 部署（生产服务器）
 
 - 服务器：`root@106.53.21.62`，密钥 `~/.ssh/id_workos_server`（Windows: `C:/Users/84879/.ssh/id_workos_server`）
-- 应用目录 `/root/sanjin-gongzuoguanli`：`next start` 跑 :3000，**用户直接访问 `http://106.53.21.62:3000`**。nginx :80 的 sanjin.art 配置是历史遗留，与本应用无关
+- 应用目录 `/root/sanjin-gongzuoguanli`：`next start` 跑 :3000；**用户访问入口 `https://work.sanjin.art`**（v14 起：nginx 反代 `work.sanjin.art` → 127.0.0.1:3000，Certbot HTTPS，配置 `/etc/nginx/conf.d/work.sanjin.art.conf`；`http://IP:3000` 直连仍可用）
 - GitHub push：本机 git 配了 127.0.0.1:7890 代理，代理没开时用 `git -c http.proxy= -c https.proxy= push` 直连
 - **绝不覆盖**：服务器上的 `data/`（生产 SQLite）和 `.env`
 
