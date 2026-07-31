@@ -68,9 +68,11 @@ export default function UnclaimedPanel({
   return (
     <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line overflow-y-auto p-5"
+        className="absolute bg-panel border-line overflow-y-auto p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* 移动端顶部抓手 */}
+        <div className="md:hidden w-10 h-1 rounded-full bg-line mx-auto mb-3" />
         <div className="flex items-center gap-2 mb-4">
           <PixelBottle size={20} />
           <h2 className="text-base font-bold">待认领区</h2>

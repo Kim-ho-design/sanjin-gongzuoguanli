@@ -90,7 +90,7 @@ export default function ReportPage() {
 
   return (
     <main className="min-h-screen ascii-bg flex flex-col">
-      <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-panel/80 backdrop-blur">
+      <header className="flex items-center gap-3 px-5 max-md:px-3 py-3 border-b border-line bg-panel/80 backdrop-blur">
         <AvatarLogo size={30} />
         <h1 className="font-bold tracking-wide">周报生成</h1>
         <span className="text-[10px] font-mono text-ink-faint tracking-[0.25em] hidden sm:inline">REPORT</span>
@@ -102,8 +102,8 @@ export default function ReportPage() {
         </Link>
       </header>
 
-      <div className="px-5 py-4 max-w-3xl w-full mx-auto flex flex-col gap-4">
-        <div className="panel p-4 flex flex-col gap-3">
+      <div className="px-5 max-md:px-3 py-4 max-w-3xl w-full mx-auto flex flex-col gap-4">
+        <div className="panel p-4 max-md:p-3 flex flex-col gap-3">
           {/* 时间区间 */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-ink-soft mr-1">区间</span>
@@ -184,7 +184,7 @@ export default function ReportPage() {
         )}
 
         {markdown && (
-          <div className="panel p-5">
+          <div className="panel p-5 max-md:p-3">
             <div className="flex gap-2 mb-3 justify-end">
               <button
                 onClick={copy}

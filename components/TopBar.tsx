@@ -84,14 +84,14 @@ export default function TopBar({
   const toggle = (k: PopKind) => setPop((v) => (v === k ? null : k));
 
   const labelCls = 'text-[10px] font-mono tracking-[0.2em] text-ink-faint';
-  const cellCls = 'px-3 py-3 flex flex-col items-center min-w-0';
+  const cellCls = 'px-2 md:px-3 py-3 flex flex-col items-center min-w-0 bg-panel';
 
   return (
     <div className="relative">
-      {/* 浅色统计条：五格均分撑满整行，格间细分割线 */}
-      <div className="panel rounded-3xl grid grid-cols-5 divide-x divide-line overflow-x-auto">
-        {/* 本周进度：大号像素百分比主显示，n/n 降为小字 */}
-        <div className={cellCls}>
+      {/* 浅色统计条：桌面五格一行；移动端两行（进度+漂流瓶 / 三态），hairline 用 gap-px 底衬实现 */}
+      <div className="panel rounded-3xl grid grid-cols-3 md:grid-cols-5 gap-px !bg-line overflow-hidden">
+        {/* 本周进度：大号像素百分比主显示，n/n 降为小字（移动端占两格） */}
+        <div className={`${cellCls} col-span-2 md:col-span-1`}>
           <p className={labelCls}>
             本周进度 <span className="text-ink-faint/60">WEEK</span>
           </p>
@@ -176,7 +176,7 @@ export default function TopBar({
       {active && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setPop(null)} />
-          <div className="absolute right-2 top-full mt-2 z-50 w-80 panel shadow-pop pop-enter p-2 max-h-[60vh] overflow-y-auto">
+          <div className="absolute right-2 top-full mt-2 z-50 w-80 max-md:left-2 max-md:w-auto panel shadow-pop pop-enter p-2 max-h-[60vh] overflow-y-auto">
             <p className="text-[10px] text-ink-faint font-mono tracking-wider px-1.5 pb-1.5 border-b border-line">
               {active.title}
             </p>

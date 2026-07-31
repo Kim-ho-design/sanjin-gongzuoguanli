@@ -1,13 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task } from '@/lib/types';
 import { weekRange, addDays, todayStr, weekdayCn, isOverdue } from '@/lib/utils';
 
-/** 周视图主视图：父任务按 deadline 落列、子任务按 planned_date 落列，可拖拽改日期 */
+/** 周视图主视图：父任务按 deadline 落列、子任务按 planned_date 落列，可拖拽改日期
+ *  移动端（v14 起）：七列改为单列长列表（按天纵向排列），触摸拖拽关闭，改走详情卡片操作 */
 const DAY_EN = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+/** 触屏判定（pointer: coarse）：决定是否禁用拖拽 */
+function useCoarsePointer() {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    setCoarse(mq.matches);
+    const fn = (e: MediaQueryListEvent) => setCoarse(e.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  return coarse;
+}
 
 export default function WeekView({
   tasks,
@@ -25,6 +39,7 @@ export default function WeekView({
   const [anchor, setAnchor] = useState(todayStr()); // displayed week 内的任意一天
   const [dragging, setDragging] = useState<Task | null>(null);
   const [laneOpen, setLaneOpen] = useState(false);
+  const coarse = useCoarsePointer();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const today = todayStr();
@@ -73,9 +88,10 @@ export default function WeekView({
     else if (overId === 'unscheduled') onMoveDate(task, null);
   }
 
-  /** ✓ 快速完成切换（hover 显现，已完成时常驻）；阻止冒泡避免触发拖拽/打开详情 */
+  /** ✓ 快速完成切换（桌面 hover 显现 / 触屏常驻放大，已完成时始终常驻）；阻止冒泡避免触发拖拽/打开详情 */
   function ToggleBtn({ t, small }: { t: Task; small?: boolean }) {
     const done = t.status === '已完成';
+    const sizeCls = small ? 'w-3 h-3' : coarse ? 'w-5 h-5' : 'w-3.5 h-3.5';
     return (
       <button
         title={done ? '重新打开' : '标记完成'}
@@ -84,12 +100,12 @@ export default function WeekView({
           onToggle(t);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className={`rounded-[3px] border flex items-center justify-center shrink-0 transition-opacity ${
-          small ? 'w-3 h-3' : 'w-3.5 h-3.5'
-        } ${
+        className={`rounded-[3px] border flex items-center justify-center shrink-0 transition-opacity ${sizeCls} ${
           done
             ? 'bg-bean-green border-bean-green text-white'
-            : 'border-line text-transparent hover:!border-bean-green hover:!text-bean-green opacity-0 group-hover:opacity-100'
+            : `border-line text-transparent hover:!border-bean-green hover:!text-bean-green ${
+                coarse ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`
         }`}
       >
         <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
@@ -115,22 +131,22 @@ export default function WeekView({
     return (
       <div
         ref={setNodeRef}
-        {...listeners}
+        {...(coarse ? {} : listeners)}
         {...attributes}
         style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined, opacity: isDragging ? 0.35 : 1 }}
         onClick={() => onOpen(isSub ? (t.parent_task_id as number) : t.id)}
-        className={`line-card card-lift group w-full text-left p-2 mb-1.5 cursor-grab active:cursor-grabbing select-none ${
-          done ? 'opacity-45' : ''
-        } ${overdue || beyondParent ? '!border-bean-orange/60 !bg-bean-orange/10' : ''}`}
+        className={`line-card card-lift group w-full text-left p-2 mb-1.5 select-none ${
+          coarse ? 'cursor-pointer max-md:p-3' : 'cursor-grab active:cursor-grabbing'
+        } ${done ? 'opacity-45' : ''} ${overdue || beyondParent ? '!border-bean-orange/60 !bg-bean-orange/10' : ''}`}
       >
         <div className="flex items-center gap-1 mb-0.5">
           <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color || '#305FB9' }} />
-          <span className="text-[9px] text-ink-faint truncate">{t.project_name}</span>
+          <span className="text-[9px] max-md:text-[10px] text-ink-faint truncate">{t.project_name}</span>
           <span className="ml-auto shrink-0">
             <ToggleBtn t={t} />
           </span>
         </div>
-        <p className={`text-[11px] text-ink leading-snug ${done ? 'line-through' : ''}`}>
+        <p className={`text-[11px] max-md:text-[13px] text-ink leading-snug ${done ? 'line-through' : ''}`}>
           {isSub && t.parent_name && t.parent_name !== t.name ? `${t.parent_name} › ` : ''}
           {t.name}
         </p>
@@ -190,21 +206,21 @@ export default function WeekView({
     return (
       <div
         ref={setNodeRef}
-        className={`panel rounded-3xl flex flex-col min-w-[150px] transition-all ${
+        className={`panel rounded-3xl flex flex-col min-w-[150px] max-md:min-w-0 transition-all ${
           isToday ? 'today-col breathe-glow' : isOver ? '!border-kimi-400 ring-1 ring-kimi-400/50' : ''
         }`}
       >
-        <div className={`px-2.5 py-2 border-b border-line flex items-baseline gap-1.5 ${isPast && !isToday ? 'opacity-60' : ''}`}>
-          <span className={`text-xs font-bold ${isToday ? 'text-kimi-600' : ''}`}>{weekdayCn(d)}</span>
+        <div className={`px-2.5 py-2 max-md:px-3.5 max-md:py-2.5 border-b border-line flex items-baseline gap-1.5 ${isPast && !isToday ? 'opacity-60' : ''}`}>
+          <span className={`text-xs max-md:text-sm font-bold ${isToday ? 'text-kimi-600' : ''}`}>{weekdayCn(d)}</span>
           <span className="text-[8px] font-mono tracking-[0.18em] text-ink-faint/70">{dayEn}</span>
-          <span className="text-[10px] font-mono text-ink-faint">{d.slice(5)}</span>
+          <span className="text-[10px] max-md:text-xs font-mono text-ink-faint">{d.slice(5)}</span>
           {isToday && (
             <span className="text-[9px] font-mono text-white bg-kimi-500 rounded px-1 leading-3 ml-auto">今天</span>
           )}
         </div>
-        <div className="p-1.5 min-h-[100px] flex-1">
+        <div className="p-1.5 max-md:p-2 min-h-[100px] max-md:min-h-0 flex-1">
           {units.length === 0 && (
-            <p className="text-[10px] font-mono text-center pt-6 text-ink-faint/50">—</p>
+            <p className="text-[10px] font-mono text-center pt-6 max-md:pt-0 max-md:pb-2 text-ink-faint/50">—</p>
           )}
           {units.map((u) => (
             <Card key={`${u.task.parent_task_id ? 's' : 't'}-${u.task.id}`} t={u.task} subs={u.subs} />
@@ -215,9 +231,9 @@ export default function WeekView({
   }
 
   return (
-    <div className="panel rounded-3xl p-4">
+    <div className="panel rounded-3xl p-4 max-md:p-3">
       {/* 周导航 */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center flex-wrap gap-3 max-md:gap-2 mb-3">
         <button onClick={() => shiftWeek(-1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">‹</button>
         <div>
           <p className="font-mono text-sm font-bold tracking-wider">
@@ -251,26 +267,26 @@ export default function WeekView({
         )}
       </div>
 
-      {/* 未排期栏 + 七天列（同一 DndContext；翻周淡入过渡） */}
+      {/* 未排期栏 + 七天列（同一 DndContext；翻周淡入过渡；移动端单列纵排） */}
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* 拖欠横条：日期早于本周一的任务，可拖入本周某天 */}
         {backlog.length > 0 && (
           <div className="mb-2 rounded-2xl border border-bean-orange/40 bg-bean-orange/10 px-3 py-2">
             <p className="text-[10px] font-mono text-bean-orange tracking-wider mb-1.5">
-              拖欠（{backlog.length}）· 拖到某天完成排期
+              拖欠（{backlog.length}）{coarse ? '· 点开卡片可改日期' : '· 拖到某天完成排期'}
             </p>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 max-md:flex-col max-md:overflow-visible">
               {backlog.map((t) => (
-                <div key={`b-${t.parent_task_id ? 's' : 't'}-${t.id}`} className="w-44 shrink-0">
+                <div key={`b-${t.parent_task_id ? 's' : 't'}-${t.id}`} className="w-44 shrink-0 max-md:w-full">
                   <Card t={t} />
                 </div>
               ))}
             </div>
           </div>
         )}
-        <div className="flex gap-2 items-start">
+        <div className="flex gap-2 items-start max-md:flex-col">
           {laneOpen && isCurrentWeek && <UnscheduledLane items={unscheduled} Card={Card} />}
-          <div key={start} className="week-enter grid grid-cols-7 gap-2 flex-1 items-start overflow-x-auto">
+          <div key={start} className="week-enter grid grid-cols-7 max-md:grid-cols-1 gap-2 flex-1 max-md:w-full items-start overflow-x-auto max-md:overflow-visible">
             {days.map((d, i) => (
               <DayColumn key={d} d={d} dayEn={DAY_EN[i]} />
             ))}
@@ -297,7 +313,7 @@ function UnscheduledLane({ items, Card }: { items: Task[]; Card: (props: { t: Ta
   return (
     <div
       ref={setNodeRef}
-      className={`panel rounded-3xl w-44 shrink-0 p-2 max-h-[420px] overflow-y-auto ${isOver ? '!border-kimi-400 ring-1 ring-kimi-400/50' : ''}`}
+      className={`panel rounded-3xl w-44 max-md:w-full shrink-0 p-2 max-h-[420px] overflow-y-auto ${isOver ? '!border-kimi-400 ring-1 ring-kimi-400/50' : ''}`}
     >
       <p className="text-[10px] font-mono text-ink-faint tracking-wider px-1 pb-1.5 border-b border-line mb-1.5">
         未排期（{items.length}）

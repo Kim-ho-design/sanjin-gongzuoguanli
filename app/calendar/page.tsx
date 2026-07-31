@@ -89,7 +89,7 @@ export default function CalendarPage() {
 
   return (
     <main className="min-h-screen ascii-bg flex flex-col">
-      <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-panel/80 backdrop-blur">
+      <header className="flex items-center gap-3 px-5 max-md:px-3 py-3 border-b border-line bg-panel/80 backdrop-blur">
         <AvatarLogo size={30} />
         <h1 className="font-bold tracking-wide">月视图</h1>
         <span className="text-[10px] font-mono text-ink-faint tracking-[0.25em] hidden sm:inline">MONTHLY</span>
@@ -98,7 +98,7 @@ export default function CalendarPage() {
         </Link>
       </header>
 
-      <div className="px-5 py-4 flex gap-4 flex-1 items-start max-w-6xl w-full mx-auto">
+      <div className="px-5 max-md:px-3 py-4 flex flex-col md:flex-row gap-4 flex-1 items-start max-w-6xl w-full mx-auto">
         {/* 日历 */}
         <div className="panel p-4 flex-1 min-w-0">
           <div className="flex items-center justify-between mb-3">
@@ -166,8 +166,8 @@ export default function CalendarPage() {
           </p>
         </div>
 
-        {/* 当天详情 */}
-        <div className="panel p-4 w-80 shrink-0 max-h-[calc(100vh-120px)] overflow-y-auto">
+        {/* 当天详情（移动端置于日历下方，全宽） */}
+        <div className="panel p-4 w-full md:w-80 shrink-0 md:max-h-[calc(100vh-120px)] overflow-y-auto">
           {!selected && (
             <p className="text-sm text-ink-faint text-center py-10">点一天查看当天详情</p>
           )}

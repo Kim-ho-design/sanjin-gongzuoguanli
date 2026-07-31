@@ -141,7 +141,7 @@ export default function TaskDetail({
   if (!detail) {
     return (
       <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
-        <div className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line p-5">
+        <div className="absolute bg-panel border-line p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l">
           <p className="text-sm text-ink-faint">加载中…</p>
         </div>
       </div>
@@ -153,9 +153,11 @@ export default function TaskDetail({
   return (
     <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="absolute right-0 top-0 h-full w-full max-w-md bg-panel border-l border-line overflow-y-auto p-5"
+        className="absolute bg-panel border-line overflow-y-auto p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* 移动端顶部抓手 */}
+        <div className="md:hidden w-10 h-1 rounded-full bg-line mx-auto mb-3" />
         {/* 头部（任务名可编辑） */}
         <div className="flex items-start gap-2 mb-4">
           <span className="w-2.5 h-2.5 rounded-[2px] mt-2 shrink-0" style={{ backgroundColor: task.project_color }} />

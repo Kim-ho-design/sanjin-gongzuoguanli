@@ -175,9 +175,9 @@ export default function HomePage() {
   return (
     <main className="min-h-screen ascii-bg pixel-dots flex flex-col">
       {/* 顶栏 */}
-      <header className="flex items-center gap-3 px-5 py-3 border-b border-line bg-panel/80 backdrop-blur">
+      <header className="flex items-center gap-3 max-md:gap-2 px-5 max-md:px-3 py-3 border-b border-line bg-panel/80 backdrop-blur">
         <AvatarLogo size={32} />
-        <h1 className="text-lg font-bold tracking-wide">三金打工清单</h1>
+        <h1 className="text-lg max-md:text-base font-bold tracking-wide">三金打工清单</h1>
         <span className="text-[10px] font-mono text-ink-faint tracking-[0.25em] hidden sm:inline">
           PLAN · DO · LOG · REVIEW
         </span>
@@ -195,7 +195,7 @@ export default function HomePage() {
         </Link>
       </header>
 
-      <div className="px-5 py-4 flex flex-col gap-4 flex-1 max-w-[1600px] w-full mx-auto">
+      <div className="px-5 max-md:px-3 py-4 pb-24 md:pb-4 flex flex-col gap-4 flex-1 max-w-[1600px] w-full mx-auto">
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {data && (
@@ -210,9 +210,11 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 唯一输入口（AI）+ 手动快速新增（兜底，不走 AI） */}
+        {/* 唯一输入口（AI）+ 手动快速新增（兜底，不走 AI）；移动端输入框移至底部吸底栏 */}
         <div className="fade-up" style={{ animationDelay: '80ms' }}>
-          <InputBox onParsed={handleParsed} />
+          <div className="max-md:hidden">
+            <InputBox onParsed={handleParsed} />
+          </div>
           <QuickAdd
             projects={data?.projects ?? []}
             onAdded={(n) => {
@@ -309,6 +311,11 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* 移动端吸底输入栏（最高频操作，拇指可及；背景渐变托底避免内容透出） */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 px-3 pb-3 pt-6 bg-gradient-to-t from-[#F5F8FF] via-[#F5F8FF]/95 to-transparent">
+        <InputBox onParsed={handleParsed} />
+      </div>
+
       {/* 弹层 */}
       {pendingParse && data && (
         <ConfirmCard
@@ -334,7 +341,7 @@ export default function HomePage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-kimi-50 border border-kimi-200 text-ink text-xs rounded-lg px-4 py-2.5 shadow-lg shadow-kimi-500/20 z-50 max-w-lg">
+        <div className="fixed bottom-6 max-md:bottom-24 left-1/2 -translate-x-1/2 bg-kimi-50 border border-kimi-200 text-ink text-xs rounded-lg px-4 py-2.5 shadow-lg shadow-kimi-500/20 z-50 max-w-lg max-md:max-w-[calc(100vw-2rem)]">
           {toast}
         </div>
       )}
