@@ -1,6 +1,7 @@
 # AGENTS.md — AI 协作记忆文件
 
 > 每轮开发对话结束前更新本文件，确保下轮对话能准确恢复上下文。**禁止凭记忆臆测，以本文件和代码为准。**
+> **分工**：本文件管代码/技术/部署；产品背景、需求文档、视觉风格、业务规则见上级 `../AGENTS.md`。
 
 ## 项目概述
 
@@ -15,15 +16,16 @@ work-os：个人工作进度管理看板。自然语言录入（DeepSeek 解析�
 - Next.js 14 App Router + TypeScript + Tailwind（拼豆配色 v10 起：主色 C07 `#305FB9`，`kimi` 色阶 500 锚点；辅助色 `bean.*`：C06 天蓝/C26 钢青/B05 亮绿=完成/P17 橙=超期·卡点·反问/M01 灰/D16 浅薰衣草/B22 墨青；文字 H16 棕黑 `#191110`；错误/删除保留红色）
 - better-sqlite3（WAL），库文件 `data/work-os.db`（gitignored）；`lib/db.ts` 单例 `getDb()`，建表 SQL 导出为 `SCHEMA_SQL`
 - 迁移 v4~v10 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）；v10 品牌蓝 #3375F6→C07 #305FB9，项目预置色板换拼豆 8 色
-- DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）
+- DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）；模型默认 **deepseek-v4-flash**（deepseek-chat 已被平台下线返回 400，`DEEPSEEK_MODEL` 环境变量可覆盖，如 deepseek-v4-pro 带推理更慢更贵），密钥只在服务端环境变量
 - 测试：Vitest（`npm test`），`lib/__tests__/`
+- **Agent 接入（v15）**：middleware 对 /api/* 放行 `Authorization: Bearer $WORK_OS_API_TOKEN`（未设不启用，cookie 密码门不变）；`GET /api/report?format=data` 原始聚合 JSON、`GET /api/tasks` 过滤列表；CLI `scripts/workos.sh` + 用户级 skill `~/.agents/skills/workos/SKILL.md`；token 只存服务器 .env 与本机 `~/.config/workos/config`，绝不入仓库
 
 ```
 app/page.tsx     首页：TopBar 数据条 → InputBox → 项目筛选 → WeekView（主视图）→ 待认领
 app/week/        重定向到 /（已并入首页）
 app/calendar/    月视图（品牌蓝色阶热力，深色格白字）  app/report/  AI 周报  app/login/
-app/api/         board / tasks(+[id]) / parse(+confirm) / projects / logs / deliverables
-                 calendar(+day) / report / unclaimed([id]+claim+restore) / auth
+app/api/         board / tasks(+[id]，GET 过滤列表 v15) / parse(+confirm) / projects / logs / deliverables
+                 calendar(+day) / report(format=data 原始聚合 v15) / unclaimed([id]+claim+restore) / auth
 components/      TopBar(五格数据条+浮层；移动端两行) WeekView(周视图+拖拽+拖欠条+未排期；移动端单列纵排+触屏禁拖拽)
                  TaskDetail(详情抽屉；移动端底部弹出 bottom sheet) InputBox(移动端吸底) ConfirmCard UnclaimedPanel Pixel
 lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply report auth

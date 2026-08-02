@@ -3,10 +3,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_COOKIE, authToken } from '@/lib/auth';
 
 export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Agent/CLI 通道：/api/* 带有效 Bearer token 直接放行（WORK_OS_API_TOKEN 未设置则不启用）
+  const apiToken = process.env.WORK_OS_API_TOKEN;
+  if (apiToken && pathname.startsWith('/api/')) {
+    const auth = req.headers.get('authorization');
+    if (auth === `Bearer ${apiToken}`) {
+      return NextResponse.next();
+    }
+  }
+
   const expected = authToken();
   if (!expected) return NextResponse.next();
 
-  const { pathname } = req.nextUrl;
   if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }

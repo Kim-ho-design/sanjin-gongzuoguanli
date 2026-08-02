@@ -1,6 +1,7 @@
 // 周报生成：GET /api/report?start=YYYY-MM-DD&end=YYYY-MM-DD&type=brief|full
+// format=data 时只返回原始聚合 JSON（不经 LLM），供 agent 自行组织周报/统计
 import { NextRequest, NextResponse } from 'next/server';
-import { generateReport } from '@/lib/report';
+import { collectReportData, generateReport } from '@/lib/report';
 import { todayStr, addDays } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,9 @@ export async function GET(req: NextRequest) {
   }
   if (start > end) {
     return NextResponse.json({ error: '开始日期不能晚于结束日期' }, { status: 400 });
+  }
+  if (req.nextUrl.searchParams.get('format') === 'data') {
+    return NextResponse.json({ data: collectReportData(start, end), start, end });
   }
   const { markdown, fallback } = await generateReport(start, end, type);
   return NextResponse.json({ markdown, fallback, type, start, end });

@@ -1,10 +1,46 @@
-// 任务：手动新建
+// 任务：手动新建 + 列表查询（GET 主要供 agent/CLI 用，支持 status/project_id 过滤）
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { TASK_STATUSES } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { nowStr, isValidDateStr } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest) {
+  const db = getDb();
+  const status = req.nextUrl.searchParams.get('status');
+  const projectId = req.nextUrl.searchParams.get('project_id');
+  const parentId = req.nextUrl.searchParams.get('parent_task_id');
+
+  const conds: string[] = [];
+  const args: (string | number)[] = [];
+  if (status) {
+    if (!TASK_STATUSES.includes(status as never)) {
+      return NextResponse.json({ error: 'status 无效' }, { status: 400 });
+    }
+    conds.push('t.status = ?');
+    args.push(status);
+  }
+  if (projectId) {
+    conds.push('t.project_id = ?');
+    args.push(Number(projectId));
+  }
+  if (parentId) {
+    conds.push('t.parent_task_id = ?');
+    args.push(Number(parentId));
+  }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const tasks = db
+    .prepare(
+      `SELECT t.*, p.name AS project_name, p.color AS project_color
+       FROM tasks t JOIN projects p ON p.id = t.project_id
+       ${where}
+       ORDER BY t.id DESC`,
+    )
+    .all(...args) as Task[];
+  return NextResponse.json({ tasks });
+}
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as {
