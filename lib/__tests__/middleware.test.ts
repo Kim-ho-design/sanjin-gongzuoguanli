@@ -40,6 +40,18 @@ describe('middleware Bearer token 通道', () => {
     expect(res.status).toBe(401);
   });
 
+  it('逗号分隔多 token：列表内任意一个都放行', () => {
+    process.env.WORK_OS_API_TOKEN = 'tok-a, tok-b ,tok-c';
+    expect(middleware(req('/api/board', { authorization: 'Bearer tok-a' })).status).toBe(200);
+    expect(middleware(req('/api/board', { authorization: 'Bearer tok-b' })).status).toBe(200);
+    expect(middleware(req('/api/board', { authorization: 'Bearer tok-c' })).status).toBe(200);
+  });
+
+  it('逗号分隔多 token：列表外的 token 拒绝', () => {
+    process.env.WORK_OS_API_TOKEN = 'tok-a,tok-b';
+    expect(middleware(req('/api/board', { authorization: 'Bearer tok-x' })).status).toBe(401);
+  });
+
   it('网页路径无 token 无 cookie 时跳转 /login', () => {
     const res = middleware(req('/'));
     expect(res.status).toBe(307);

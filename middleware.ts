@@ -5,11 +5,15 @@ import { AUTH_COOKIE, authToken } from '@/lib/auth';
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Agent/CLI 通道：/api/* 带有效 Bearer token 直接放行（WORK_OS_API_TOKEN 未设置则不启用）
-  const apiToken = process.env.WORK_OS_API_TOKEN;
-  if (apiToken && pathname.startsWith('/api/')) {
+  // Agent/CLI 通道：/api/* 带有效 Bearer token 直接放行
+  // WORK_OS_API_TOKEN 支持逗号分隔多个 token（每个工具一把，可单独吊销）；未设置则不启用
+  const apiTokens = (process.env.WORK_OS_API_TOKEN || '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (apiTokens.length && pathname.startsWith('/api/')) {
     const auth = req.headers.get('authorization');
-    if (auth === `Bearer ${apiToken}`) {
+    if (auth?.startsWith('Bearer ') && apiTokens.includes(auth.slice(7).trim())) {
       return NextResponse.next();
     }
   }
