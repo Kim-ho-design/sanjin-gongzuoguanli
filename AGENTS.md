@@ -18,7 +18,7 @@ work-os：个人工作进度管理看板。自然语言录入（DeepSeek 解析�
 - 迁移 v4~v10 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）；v10 品牌蓝 #3375F6→C07 #305FB9，项目预置色板换拼豆 8 色
 - DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）；模型默认 **deepseek-v4-flash**（deepseek-chat 已被平台下线返回 400，`DEEPSEEK_MODEL` 环境变量可覆盖，如 deepseek-v4-pro 带推理更慢更贵），密钥只在服务端环境变量
 - 测试：Vitest（`npm test`），`lib/__tests__/`
-- **Agent 接入（v15）**：middleware 对 /api/* 放行 `Authorization: Bearer $WORK_OS_API_TOKEN`（未设不启用，cookie 密码门不变）；`GET /api/report?format=data` 原始聚合 JSON、`GET /api/tasks` 过滤列表；CLI `scripts/workos.sh` + 用户级 skill `~/.agents/skills/workos/`；token 只存服务器 .env 与本机 `~/.config/workos/config`，绝不入仓库
+- **Agent 接入（v15）**：middleware 对 /api/* 放行 `Authorization: Bearer $WORK_OS_API_TOKEN`（未设不启用，cookie 密码门不变）；**v15.1 起支持逗号分隔多 token**（每工具一把，可单独吊销）；`GET /api/report?format=data` 原始聚合 JSON、`GET /api/tasks` 过滤列表；CLI `scripts/workos.sh` + 用户级 skill `~/.agents/skills/workos/`；token 由个人网站后台「🔑 密钥」页统一管理（同步写服务器 .env + 重启本应用），也存本机 `~/.config/workos/config`，绝不入仓库
   - ⚠️ `scripts/workos.sh` 的**规范副本在公开仓库 github.com/Kim-ho-design/workos-skill**（含 SKILL.md + README 安装说明，供新 agent 克隆安装）；改脚本必须两边同步
 
 ```
