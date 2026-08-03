@@ -24,7 +24,9 @@ export default function InputBox({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: input }),
       });
-      const data = await res.json();
+      // 容错：网关超时等情况返回的是 HTML 错误页，res.json() 会抛 "Unexpected token '<'" 天书
+      const data = await res.json().catch(() => null);
+      if (!data) throw new Error('服务开小差了，请稍后重试');
       if (!res.ok) throw new Error(data.error || '解析失败');
       setText('');
       onParsed(input, data.parsed as ParseResult);

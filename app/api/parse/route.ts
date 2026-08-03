@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { buildSystemPrompt } from '@/lib/prompt';
-import { callParse, LlmError } from '@/lib/llm';
+import { callParse, LlmError, needsThinkingRetry } from '@/lib/llm';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,12 @@ export async function POST(req: NextRequest) {
       )
       .all() as { name: string; project_name: string; status: string }[];
 
-    const parsed = await callParse(buildSystemPrompt(projects, tasks), text.trim());
+    const systemPrompt = buildSystemPrompt(projects, tasks);
+    // v16 双通道：先关思考快解析（2~3s）；结果不可信（意图不清/时间词没落日期）再思考重试
+    let parsed = await callParse(systemPrompt, text.trim());
+    if (needsThinkingRetry(text.trim(), parsed)) {
+      parsed = await callParse(systemPrompt, text.trim(), { thinking: true });
+    }
     return NextResponse.json({ parsed });
   } catch (e) {
     if (e instanceof LlmError) {

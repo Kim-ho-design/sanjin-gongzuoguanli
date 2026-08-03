@@ -92,7 +92,9 @@ export default function ConfirmCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_text: rawText, parsed: edited, project_choice, task_projects }),
       });
-      const data = await res.json();
+      // 容错：网关超时等情况返回的是 HTML 错误页，res.json() 会抛 "Unexpected token '<'" 天书
+      const data = await res.json().catch(() => null);
+      if (!data) throw new Error('服务开小差了，请稍后重试');
       if (!res.ok) throw new Error(data.error || '写入失败');
       onDone(data.summary as ApplySummary);
     } catch (e) {

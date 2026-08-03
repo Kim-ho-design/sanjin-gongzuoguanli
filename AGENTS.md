@@ -17,7 +17,8 @@ work-os：个人工作进度管理看板。自然语言录入（DeepSeek 解析�
 - better-sqlite3（WAL），库文件 `data/work-os.db`（gitignored）；`lib/db.ts` 单例 `getDb()`，建表 SQL 导出为 `SCHEMA_SQL`
 - 迁移 v4~v10 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）；v10 品牌蓝 #3375F6→C07 #305FB9，项目预置色板换拼豆 8 色
 - DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）；模型默认 **deepseek-v4-flash**（deepseek-chat 已被平台下线返回 400，`DEEPSEEK_MODEL` 环境变量可覆盖，如 deepseek-v4-pro 带推理更慢更贵），密钥只在服务端环境变量
-- 测试：Vitest（`npm test`），`lib/__tests__/`
+- **v16 解析双通道**（`callParse` + `needsThinkingRetry`）：v4-flash 默认开思考（effort=high），复杂句实测 14~88s 撞 nginx 60s 504 → 默认**关思考**快解析（2~3s）；快通道结果不可信（意图 unclear，或原话含时间词但所有日期字段全空）→ 自动带思考重试一次。LLM 调用统一 45s 超时兜底（AbortController），LlmError 走 502 JSON，前端（InputBox/ConfirmCard）对非 JSON 响应显示"服务开小差了"。prompt v16 加固：总分枚举拆子任务（"X定稿，其中A…；B…"→ 1父N子，会议也算子任务）、date_check 先出对照再出结果、名称保真、今天/明天/后天/昨天/前天日期锚点、"要交"类示例（规则 2.1/2.2/8/10 + 示例 6/7/8）
+- 测试：Vitest（`npm test`），`lib/__tests__/`（含 parse-retry.test.ts 双通道判定用例，v16）
 - **Agent 接入（v15）**：middleware 对 /api/* 放行 `Authorization: Bearer $WORK_OS_API_TOKEN`（未设不启用，cookie 密码门不变）；**v15.1 起支持逗号分隔多 token**（每工具一把，可单独吊销）；`GET /api/report?format=data` 原始聚合 JSON、`GET /api/tasks` 过滤列表；CLI `scripts/workos.sh` + 用户级 skill `~/.agents/skills/workos/`；token 由个人网站后台「🔑 密钥」页统一管理（同步写服务器 .env + 重启本应用），也存本机 `~/.config/workos/config`，绝不入仓库
   - ⚠️ `scripts/workos.sh` 的**规范副本在公开仓库 github.com/Kim-ho-design/workos-skill**（含 SKILL.md + README 安装说明，供新 agent 克隆安装）；改脚本必须两边同步
 
@@ -70,7 +71,7 @@ lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply r
 ## 部署（生产服务器）
 
 - 服务器：`root@106.53.21.62`，密钥 `~/.ssh/id_workos_server`（Windows: `C:/Users/84879/.ssh/id_workos_server`）
-- 应用目录 `/root/sanjin-gongzuoguanli`：`next start` 跑 :3000；**用户访问入口 `https://work.sanjin.art`**（v14 起：nginx 反代 `work.sanjin.art` → 127.0.0.1:3000，Certbot HTTPS，配置 `/etc/nginx/conf.d/work.sanjin.art.conf`；`http://IP:3000` 直连仍可用）
+- 应用目录 `/root/sanjin-gongzuoguanli`：`next start` 跑 :3000；**用户访问入口 `https://work.sanjin.art`**（v14 起：nginx 反代 `work.sanjin.art` → 127.0.0.1:3000，Certbot HTTPS，配置 `/etc/nginx/conf.d/work.sanjin.art.conf`；**v16 起 proxy_read_timeout 120s**，配合 LLM 45s 应用层超时，杜绝 504 HTML 错误页；`http://IP:3000` 直连仍可用）
 - GitHub push：本机 git 配了 127.0.0.1:7890 代理，代理没开时用 `git -c http.proxy= -c https.proxy= push` 直连
 - **绝不覆盖**：服务器上的 `data/`（生产 SQLite）和 `.env`
 
