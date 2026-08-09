@@ -74,6 +74,7 @@ lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply r
 - 应用目录 `/root/sanjin-gongzuoguanli`：`next start` 跑 :3000；**用户访问入口 `https://work.sanjin.art`**（v14 起：nginx 反代 `work.sanjin.art` → 127.0.0.1:3000，Certbot HTTPS，配置 `/etc/nginx/conf.d/work.sanjin.art.conf`；**v16 起 proxy_read_timeout 120s**，配合 LLM 45s 应用层超时，杜绝 504 HTML 错误页；`http://IP:3000` 直连仍可用）
 - GitHub push：本机 git 配了 127.0.0.1:7890 代理，代理没开时用 `git -c http.proxy= -c https.proxy= push` 直连
 - **绝不覆盖**：服务器上的 `data/`（生产 SQLite）和 `.env`
+- **同机多应用警告（2026-08-09 起）**：服务器还有 diet-os(:3001) 等 next-server；重启一律按端口杀（`fuser -k <port>/tcp`），`pkill -f` 模式既会误杀邻居、也会匹配 ssh 自己命令行杀掉会话（exit 255）；内存常年接近打满（OOM 会静默杀进程），启动带 `NODE_OPTIONS=--max-old-space-size=512`
 
 发布步骤（本地执行）：
 
@@ -93,8 +94,9 @@ ssh -i ~/.ssh/id_workos_server root@106.53.21.62 '
   cp data/work-os.db data/work-os.db.bak-$(date +%Y%m%d-%H%M%S) &&
   tar xzf /root/work-os-deploy.tar.gz &&
   npm ci && npm run build &&
-  kill $(pgrep -f "next-server") 2>/dev/null; sleep 2
-  nohup npm start > app.log 2>&1 &'
+  # ⚠️ 同机还有 diet-os(:3001) 等 next 应用：绝不能 pgrep/pkill -f "next-server"（会全杀），按端口杀
+  fuser -k 3000/tcp 2>/dev/null; sleep 2
+  nohup env NODE_OPTIONS=--max-old-space-size=512 npm start > app.log 2>&1 &'
 
 # 4. 验证
 curl -s -o /dev/null -w "%{http_code}" http://106.53.21.62:3000/
