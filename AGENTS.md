@@ -13,9 +13,9 @@ work-os：个人工作进度管理看板。自然语言录入（DeepSeek 解析�
 
 ## 技术栈与结构
 
-- Next.js 14 App Router + TypeScript + Tailwind（拼豆配色 v10 起：主色 C07 `#305FB9`，`kimi` 色阶 500 锚点；辅助色 `bean.*`：C06 天蓝/C26 钢青/B05 亮绿=完成/P17 橙=超期·卡点·反问/M01 灰/D16 浅薰衣草/B22 墨青；文字 H16 棕黑 `#191110`；错误/删除保留红色）
+- Next.js 14 App Router + TypeScript + Tailwind（Kimi 官方品牌体系 v17 起：主色品牌蓝 `#007CFF`，`kimi` 色阶 500 锚点、900=深锚 `#002F5B`；辅助色 `bean.*`：亮蓝/深蓝/B05 亮绿=完成/橙=超期·卡点·反问/中性灰/薰衣草/墨青；文字 `#121212`；底色暖白 `#FAF9F6`；等宽位 Geist Mono；错误/删除保留红色；v10~v16 曾为拼豆配色）
 - better-sqlite3（WAL），库文件 `data/work-os.db`（gitignored）；`lib/db.ts` 单例 `getDb()`，建表 SQL 导出为 `SCHEMA_SQL`
-- 迁移 v4~v10 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）；v10 品牌蓝 #3375F6→C07 #305FB9，项目预置色板换拼豆 8 色
+- 迁移 v4~v11 幂等 SQL（未用 user_version）：v7 父任务 planned_date→同名子任务；**v8 状态简化：待确认审核→已完成（回填 completed_at）、待办事项→待启动**；**v9 tasks 加 prev_status 列**（级联完成时记子任务原状态）；v10 品牌蓝 #3375F6→C07 #305FB9，项目预置色板换拼豆 8 色；**v11 拼豆色→Kimi 品牌色板（#305FB9→#007CFF 等 4 色 remap，默认值同步）**
 - DeepSeek：`lib/llm.ts`（`callDeepSeek` 共享；`callParse` JSON 模式；`callReport` 文本模式）；模型默认 **deepseek-v4-flash**（deepseek-chat 已被平台下线返回 400，`DEEPSEEK_MODEL` 环境变量可覆盖，如 deepseek-v4-pro 带推理更慢更贵），密钥只在服务端环境变量
 - **v16 解析双通道**（`callParse` + `needsThinkingRetry`）：v4-flash 默认开思考（effort=high），复杂句实测 14~88s 撞 nginx 60s 504 → 默认**关思考**快解析（2~3s）；快通道结果不可信（意图 unclear，或原话含时间词但所有日期字段全空）→ 自动带思考重试一次。LLM 调用统一 45s 超时兜底（AbortController），LlmError 走 502 JSON，前端（InputBox/ConfirmCard）对非 JSON 响应显示"服务开小差了"。prompt v16 加固：总分枚举拆子任务（"X定稿，其中A…；B…"→ 1父N子，会议也算子任务）、date_check 先出对照再出结果、名称保真、今天/明天/后天/昨天/前天日期锚点、"要交"类示例（规则 2.1/2.2/8/10 + 示例 6/7/8）
 - 测试：Vitest（`npm test`），`lib/__tests__/`（含 parse-retry.test.ts 双通道判定用例，v16）

@@ -140,7 +140,7 @@ export default function WeekView({
         } ${done ? 'opacity-45' : ''} ${overdue || beyondParent ? '!border-bean-orange/60 !bg-bean-orange/10' : ''}`}
       >
         <div className="flex items-center gap-1 mb-0.5">
-          <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color || '#305FB9' }} />
+          <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color || '#007CFF' }} />
           <span className="text-[9px] max-md:text-[10px] text-ink-faint truncate">{t.project_name}</span>
           <span className="ml-auto shrink-0">
             <ToggleBtn t={t} />

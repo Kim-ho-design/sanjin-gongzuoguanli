@@ -6,16 +6,16 @@ import fs from 'fs';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'work-os.db');
 
-// 拼豆配色（v10 起）：色号即拼豆用料编号，只取白字可读的深中色
+// Kimi 品牌配色（v17 起，对齐官方品牌手册）：只取白字可读的深中色
 const PROJECT_COLORS = [
-  '#305FB9', // C07 主蓝（品牌色）
-  '#5996D9', // C06 天蓝
-  '#5098BF', // C26 钢青
-  '#1839A8', // C08 宝蓝
-  '#17343C', // B22 墨青
-  '#64C656', // B05 亮绿
-  '#E5983C', // P17 橙
-  '#8A9084', // M01 鼠尾草灰（加深版，保证白字可读）
+  '#007CFF', // 品牌蓝（手册核心色）
+  '#00A1FF', // 亮蓝
+  '#0053B8', // 深蓝
+  '#002F5B', // 深海军蓝
+  '#17343C', // 墨青
+  '#64C656', // 亮绿
+  '#E5983C', // 橙
+  '#8A9084', // 中性灰
 ];
 
 /** 建表 SQL（导出供测试用临时库复用） */
@@ -24,7 +24,7 @@ export const SCHEMA_SQL = `
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       status TEXT NOT NULL DEFAULT '进行中',
-      color TEXT NOT NULL DEFAULT '#305FB9',
+      color TEXT NOT NULL DEFAULT '#007CFF',
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
     CREATE TABLE IF NOT EXISTS tasks (
@@ -115,6 +115,17 @@ function createDb(): Database.Database {
        WHEN '#748FFC' THEN '#5996D9'  -- 亮蓝紫 → C06 天蓝
        ELSE color END
      WHERE color IN ('#22B8CF','#845EF7','#F783AC','#FFA94D','#51CF66','#FFD43B','#748FFC')`
+  ).run();
+
+  // v11 迁移：Kimi 品牌配色（对齐官方品牌手册），拼豆色统一映射到新色板
+  db.prepare(
+    `UPDATE projects SET color = CASE color
+       WHEN '#305FB9' THEN '#007CFF'  -- C07 主蓝 → 品牌蓝
+       WHEN '#5996D9' THEN '#00A1FF'  -- C06 天蓝 → 亮蓝
+       WHEN '#5098BF' THEN '#0053B8'  -- C26 钢青 → 深蓝
+       WHEN '#1839A8' THEN '#002F5B'  -- C08 宝蓝 → 深海军蓝
+       ELSE color END
+     WHERE color IN ('#305FB9','#5996D9','#5098BF','#1839A8')`
   ).run();
 
   // v7 迁移：父任务的 planned_date 迁移为子任务（计划时间改由子任务承接）
