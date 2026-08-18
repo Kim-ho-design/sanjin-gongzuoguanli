@@ -24,38 +24,63 @@
   font-style: normal;
   font-display: swap;
 }
+/* Geist Mono（Kimi 品牌手册指定等宽，OFL 开源）：英文眉题 / 日期 / 统计小字 */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  --background: #f5f8ff;
-  --foreground: #191110;
+  --background: #FAF9F6; /* 暖白（Kimi 新版 UI 方向） */
+  --foreground: #121212;
+  --brand: #007CFF;
+  --brand-deep: #002F5B;
+  --line: #E1E3E6;
   /* 阴影分级：卡片浮于底 / 浮层浮于卡 / 按钮品牌蓝 */
-  --shadow-card: 0 1px 2px rgba(16, 24, 64, 0.04), 0 4px 16px rgba(16, 24, 64, 0.06);
-  --shadow-pop: 0 8px 30px rgba(16, 24, 64, 0.16);
-  --shadow-btn: 0 2px 8px rgba(48, 95, 185, 0.35);
+  --shadow-card: 0 1px 2px rgba(18, 18, 18, 0.04), 0 4px 16px rgba(18, 18, 18, 0.06);
+  --shadow-pop: 0 8px 30px rgba(18, 18, 18, 0.16);
+  --shadow-btn: 0 2px 8px rgba(0, 124, 255, 0.35);
 }
 
 body {
-  background: linear-gradient(180deg, #f7faff 0%, #f1f5fe 100%);
+  background: var(--background);
   color: var(--foreground);
   font-family: 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
-/* ASCII 字符纹理背景（致敬 Kimi 海报）：极淡蓝色字符网格 */
+/* De-coding 字符纹理背景（Kimi 品牌质感）：极淡品牌蓝字符网格，降噪不抢戏 */
 .ascii-bg {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.05'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.045'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.045'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.06'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.04'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.05'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.045'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%23305FB9' fill-opacity='0.05'%3EK%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Ctext x='4' y='14' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.045'%3EK%3C/text%3E%3Ctext x='40' y='30' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.04'%3E%E2%96%B2%3C/text%3E%3Ctext x='80' y='12' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.035'%3E%23%3C/text%3E%3Ctext x='115' y='34' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.04'%3E*%3C/text%3E%3Ctext x='10' y='66' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.035'%3E%E2%97%8F%3C/text%3E%3Ctext x='52' y='80' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.045'%3EK%3C/text%3E%3Ctext x='95' y='62' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.03'%3E%23%3C/text%3E%3Ctext x='24' y='110' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.04'%3E*%3C/text%3E%3Ctext x='70' y='124' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.035'%3E%E2%96%B2%3C/text%3E%3Ctext x='118' y='104' font-family='monospace' font-size='11' fill='%23007CFF' fill-opacity='0.04'%3EK%3C/text%3E%3C/svg%3E");
 }
 
 /* 极淡像素点阵纹理（叠加在 ascii-bg 字符纹理之上，不抢戏） */
 .pixel-dots {
-  background-image: radial-gradient(rgba(48, 95, 185, 0.055) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(0, 124, 255, 0.045) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
-/* 面板与卡片：白色 + 细线条描边 + 分级投影 */
+/* 面板与卡片：白色 + 中性灰描边 + 分级投影 */
 .panel {
   background: #ffffff;
-  border: 1px solid #e3e9fb;
-  border-radius: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   box-shadow: var(--shadow-card);
 }
 .shadow-pop {
@@ -66,16 +91,16 @@ body {
 }
 /* 周视图"今天"列：品牌蓝 2px 描边（配合极淡呼吸光晕） */
 .today-col {
-  border: 2px solid #305FB9 !important;
+  border: 2px solid var(--brand) !important;
 }
 .line-card {
   background: #ffffff;
-  border: 1px solid #e3e9fb;
-  border-radius: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .line-card:hover {
-  border-color: #93B1E3;
+  border-color: #5BB8FF;
 }
 
 /* ---- v8 动效（ prefers-reduced-motion 下统一关闭，见文件末尾） ---- */
@@ -85,16 +110,16 @@ body {
 }
 .card-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(26, 29, 46, 0.1);
+  box-shadow: 0 6px 16px rgba(18, 18, 18, 0.1);
 }
 /* 拖拽中卡片微倾斜（DragOverlay） */
 .dragging-tilt {
   transform: rotate(2deg);
 }
-/* 今天列：品牌蓝呼吸光晕（v8.1 调淡，干净克制） */
+/* 今天列：品牌蓝呼吸光晕（干净克制） */
 @keyframes breathe-glow {
-  0%, 100% { box-shadow: 0 1px 2px rgba(16, 24, 64, 0.04), 0 0 0 0 rgba(48, 95, 185, 0); }
-  50% { box-shadow: 0 1px 2px rgba(16, 24, 64, 0.04), 0 0 14px 1px rgba(48, 95, 185, 0.28); }
+  0%, 100% { box-shadow: 0 1px 2px rgba(18, 18, 18, 0.04), 0 0 0 0 rgba(0, 124, 255, 0); }
+  50% { box-shadow: 0 1px 2px rgba(18, 18, 18, 0.04), 0 0 14px 1px rgba(0, 124, 255, 0.28); }
 }
 .breathe-glow {
   animation: breathe-glow 3.6s ease-in-out infinite;
@@ -147,7 +172,7 @@ body {
   animation: pixel-blink 1.2s steps(1) infinite;
 }
 
-/* LED 呼吸点（列状态灯） */
+/* LED 呼吸点（列状态灯）：电光青小面积点缀 */
 @keyframes led-glow {
   0%, 100% { box-shadow: 0 0 2px 0px currentColor; }
   50% { box-shadow: 0 0 6px 2px currentColor; }
@@ -165,27 +190,27 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C0D2F0;
+  background: #D9EBFF;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #305FB9;
+  background: var(--brand);
 }
 
 /* 输入控件统一样式（类名保留 input-dark，样式为亮色） */
 .input-dark {
-  background: #f8faff;
-  border: 1px solid #e3e9fb;
+  background: #FCFCFB;
+  border: 1px solid var(--line);
   border-radius: 8px;
   outline: none;
   transition: border-color 0.15s ease;
-  color: #191110;
+  color: var(--foreground);
 }
 .input-dark:focus {
-  border-color: #305FB9;
+  border-color: var(--brand);
 }
 .input-dark::placeholder {
-  color: #948C83;
+  color: #8D9390;
 }
 
 /* 无障碍：用户系统开启"减少动态效果"时，全站动效自动关闭 */
@@ -213,21 +238,21 @@ body {
   font-size: 19px;
   font-weight: 700;
   margin: 4px 0 12px;
-  color: #191110;
+  color: var(--foreground);
 }
 .report-md h2 {
   font-size: 15px;
   font-weight: 700;
   margin: 18px 0 8px;
   padding-left: 8px;
-  border-left: 3px solid #305FB9;
-  color: #191110;
+  border-left: 3px solid var(--brand);
+  color: var(--foreground);
 }
 .report-md h3 {
   font-size: 14px;
   font-weight: 500;
   margin: 12px 0 4px;
-  color: #191110;
+  color: var(--foreground);
 }
 .report-md p {
   margin: 6px 0;
@@ -247,15 +272,15 @@ body {
   margin: 4px 0;
 }
 .report-md li::marker {
-  color: #305FB9;
+  color: var(--brand);
 }
 .report-md strong {
   font-weight: 700;
-  color: #191110;
+  color: var(--foreground);
 }
 .report-md hr {
   border: none;
-  border-top: 1px solid #e3e9fb;
+  border-top: 1px solid var(--line);
   margin: 14px 0;
 }
 .report-md table {
@@ -265,10 +290,10 @@ body {
 }
 .report-md th,
 .report-md td {
-  border: 1px solid #e3e9fb;
+  border: 1px solid var(--line);
   padding: 4px 10px;
   text-align: left;
 }
 .report-md th {
-  background: #f5f8ff;
+  background: #F6F6F4;
 }

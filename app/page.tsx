@@ -312,7 +312,7 @@ export default function HomePage() {
       </div>
 
       {/* 移动端吸底输入栏（最高频操作，拇指可及；背景渐变托底避免内容透出） */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 px-3 pb-3 pt-6 bg-gradient-to-t from-[#F5F8FF] via-[#F5F8FF]/95 to-transparent">
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 px-3 pb-3 pt-6 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6]/95 to-transparent">
         <InputBox onParsed={handleParsed} />
       </div>
 

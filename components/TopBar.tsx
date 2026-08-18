@@ -58,7 +58,7 @@ export default function TopBar({
       key: `${isSub ? 's' : 't'}-${t.id}`,
       openId: isSub ? (t.parent_task_id as number) : t.id,
       label: isSub && t.parent_name ? `${t.parent_name} › ${t.name}` : t.name,
-      color: t.project_color || '#305FB9',
+      color: t.project_color || '#007CFF',
       right: showDate && date ? `${isSub ? '计划' : '截止'} ${date.slice(5)}` : undefined,
     };
   }
@@ -70,7 +70,7 @@ export default function TopBar({
         key: `${it.kind}-${it.id}`,
         openId: it.kind === 'subtask' ? (it.parent_id as number) : it.id,
         label: it.kind === 'subtask' && it.parent_name ? `${it.parent_name} › ${it.name}` : it.name,
-        color: it.project_color || '#305FB9',
+        color: it.project_color || '#007CFF',
         right: `${it.kind === 'subtask' ? '计划' : '截止'} ${it.date.slice(5)} · 超期${overdueDays(it.date)}天`,
         rightRed: true,
       })),
@@ -96,7 +96,7 @@ export default function TopBar({
             本周进度 <span className="text-ink-faint/60">WEEK</span>
           </p>
           <div className="mt-1.5">
-            <PixelNumber value={rate === null ? '--' : `${rate}%`} size={4} color="#305FB9" />
+            <PixelNumber value={rate === null ? '--' : `${rate}%`} size={4} color="#007CFF" />
           </div>
           <p className="text-[10px] font-mono text-ink-faint mt-1">
             {stats.week_done}/{stats.week_plan}
@@ -129,7 +129,7 @@ export default function TopBar({
               <PixelNumber
                 value={String(stats.overdue_count)}
                 size={4}
-                color={stats.overdue_count > 0 ? '#E5983C' : '#191110'}
+                color={stats.overdue_count > 0 ? '#E5983C' : '#121212'}
               />
             </button>
             <button
@@ -141,7 +141,7 @@ export default function TopBar({
               <PixelNumber
                 value={String(stats.unclaimed_count)}
                 size={4}
-                color={stats.unclaimed_count > 0 ? '#8A9084' : '#191110'}
+                color={stats.unclaimed_count > 0 ? '#8A9084' : '#121212'}
               />
             </button>
           </div>
@@ -152,7 +152,7 @@ export default function TopBar({
         {(
           [
             ['todo', '待启动', 'TODO', progress.todo.length, '#8A9084'],
-            ['doing', '进行中', 'DOING', progress.doing.length, '#305FB9'],
+            ['doing', '进行中', 'DOING', progress.doing.length, '#007CFF'],
             ['done', '已完成', 'DONE', progress.done.length, '#64C656'],
           ] as const
         ).map(([key, label, en, count, accent]) => (
@@ -165,7 +165,7 @@ export default function TopBar({
               title={`查看${label}列表`}
               className="mt-1.5 cursor-pointer rounded-sm hover:ring-1 hover:ring-kimi-300 transition-shadow"
             >
-              <PixelNumber value={String(count)} size={4} color={count > 0 ? accent : '#191110'} />
+              <PixelNumber value={String(count)} size={4} color={count > 0 ? accent : '#121212'} />
             </button>
             <p className="text-[9px] text-ink-faint font-mono mt-1">点击查看 ›</p>
           </div>

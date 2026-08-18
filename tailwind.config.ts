@@ -11,41 +11,50 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        // 拼豆配色（v10 起）：锚点 C07 #305FB9，宝蓝 C08 #1839A8 作深阶
+        // Kimi 品牌色阶（v17 起，对齐官方品牌手册）：锚点 #007CFF，深锚 #002F5B
         kimi: {
-          50: "#EEF3FB",
-          100: "#DCE7F7",
-          200: "#C0D2F0",
-          300: "#93B1E3",
-          400: "#5E85CE",
-          500: "#305FB9",
-          600: "#29519F",
-          700: "#1839A8",
-          800: "#16307E",
-          900: "#12245C",
+          50: "#EAF4FF",
+          100: "#D9EBFF",
+          200: "#A0DAF7", // 手册浅蓝
+          300: "#5BB8FF",
+          400: "#00A1FF", // 手册亮蓝（高亮位）
+          500: "#007CFF", // 手册核心品牌蓝
+          600: "#0069DB",
+          700: "#0053B8",
+          800: "#003F8C",
+          900: "#002F5B", // 手册深海军蓝（深锚）
         },
         ink: {
-          DEFAULT: "#191110", // H16 棕黑
-          soft: "#57504A",
-          faint: "#948C83",
+          DEFAULT: "#121212", // 手册近黑
+          soft: "#707070",
+          faint: "#8D9390",
         },
-        // 拼豆辅助色（色号即拼豆用料编号）
+        // 语义辅助色（沿用 bean 命名，值向手册色板对齐）
         bean: {
-          sky: "#5996D9", // C06 天蓝
-          steel: "#5098BF", // C26 钢青
-          green: "#64C656", // B05 亮绿（完成/成功）
-          orange: "#E5983C", // P17 橙（超期/反问/卡点等"注意"语义）
-          sage: "#AFB5A8", // M01 鼠尾草灰
-          lavender: "#D1CDDC", // D16 浅薰衣草
-          teal: "#17343C", // B22 墨青
+          sky: "#00A1FF", // 手册亮蓝
+          steel: "#0053B8", // 深蓝（= kimi-700）
+          green: "#64C656", // 完成/成功（保留：手册荧光绿白字不可读）
+          orange: "#E5983C", // 超期/反问/卡点（保留：手册无橙）
+          sage: "#8D9390", // 手册中性灰
+          lavender: "#DFC8F5", // 手册薰衣草
+          teal: "#17343C", // 墨青（保留：深色位）
         },
-        line: "#E3E9FB",
+        line: "#E1E3E6", // 手册中性灰描边
         panel: "#FFFFFF",
-        card: "#F7F9FF",
+        card: "#F6F6F4", // 暖灰浅底
+      },
+      borderRadius: {
+        panel: "16px",
+        card: "10px",
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(18, 18, 18, 0.04), 0 4px 16px rgba(18, 18, 18, 0.06)",
+        pop: "0 8px 30px rgba(18, 18, 18, 0.16)",
+        btn: "0 2px 8px rgba(0, 124, 255, 0.35)",
       },
       fontFamily: {
         sans: ["HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "system-ui", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+        mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
     },
   },

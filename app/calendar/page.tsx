@@ -30,14 +30,14 @@ function dateStr(d: Date): string {
   return `${monthStr(d)}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 每日压力：天气预报式预警配色（v12 起）—— 灰无安排 / 蓝轻松 / 黄适中 / 橙偏忙 / 红高压
+// 每日压力：单色蓝阶热力（v17 起，Kimi 手册「灰底 + 蓝色高亮」原则）—— 无安排 / 灰 / 浅蓝 / 亮蓝 / 深锚
 // 评分规则见 lib/pressure.ts（耗时×1 + 完成×1 + 截止×2 + 计划×1 + 记录×0.3）
 const HEAT = [
-  'bg-transparent', // 0 灰 · 无安排
-  'bg-bean-sky/25', // 1 蓝 · 轻松
-  'bg-amber-300/50', // 2 黄 · 适中
-  'bg-bean-orange/85', // 3 橙 · 偏忙
-  'bg-red-500/85', // 4 红 · 高压
+  'bg-transparent', // 0 · 无安排
+  'bg-[#E1E3E6]/60', // 1 灰 · 轻松
+  'bg-kimi-200/70', // 2 浅蓝 · 适中
+  'bg-kimi-400/85', // 3 亮蓝 · 偏忙
+  'bg-kimi-900', // 4 深海军蓝 · 高压
 ];
 
 export default function CalendarPage() {
@@ -119,7 +119,7 @@ export default function CalendarPage() {
               const heat = pressureLevel(s);
               const isToday = d === today;
               const isSelected = d === selected;
-              const onDark = heat >= 3; // 橙/红深格上文字转白
+              const onDark = heat >= 3; // 亮蓝/深锚深格上文字转白
               return (
                 <button
                   key={d}
