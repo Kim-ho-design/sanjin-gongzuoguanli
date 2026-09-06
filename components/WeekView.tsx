@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import PrioritySelect, { PriorityValue, priorityLabels } from './PrioritySelect';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task } from '@/lib/types';
@@ -29,13 +30,25 @@ export default function WeekView({
   onOpen,
   onMoveDate,
   onToggle,
+  onPriorityChanged,
 }: {
+  onPriorityChanged?: () => void;
   tasks: Task[];
   subtasks?: Task[];
   onOpen: (id: number) => void;
   onMoveDate: (task: Task, date: string | null) => void;
   onToggle: (task: Task) => void;
 }) {
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [prioritySort, setPrioritySort] = useState(false);
+  const [priorityError, setPriorityError] = useState('');
+  const [priorityBusy, setPriorityBusy] = useState(false);
+  async function savePriority(id: number, priority: PriorityValue) {
+    setPriorityBusy(true); setPriorityError('');
+    try { const res = await fetch('/api/tasks/' + id, {method:'PATCH', headers:{'Content-Type':'application/json'},body:JSON.stringify({priority})});
+      if (!res.ok) throw new Error(); onPriorityChanged?.();
+    } catch { setPriorityError('优先级保存失败，请重试'); } finally { setPriorityBusy(false); }
+  }
   const [anchor, setAnchor] = useState(todayStr()); // displayed week 内的任意一天
   const [dragging, setDragging] = useState<Task | null>(null);
   const [laneOpen, setLaneOpen] = useState(false);
@@ -48,27 +61,31 @@ export default function WeekView({
 
   const parentById = new Map(tasks.map((t) => [t.id, t]));
 
+  const priorityOf = (t: Task) => t.priority ?? (t.parent_task_id ? parentById.get(t.parent_task_id)?.priority : null) ?? null;
+  const matches = (t: Task) => priorityFilter === 'all' || String(priorityOf(t) ?? 0) === priorityFilter;
+  const visibleTasks = tasks.filter(matches);
+  const visibleSubs = subtasks.filter(matches);
   // 按天归组：父任务按 deadline、子任务按 planned_date（排序在渲染合并单元时做）
   const byDay = new Map<string, Task[]>(days.map((d) => [d, []]));
-  for (const t of tasks) {
+  for (const t of visibleTasks) {
     if (t.deadline && byDay.has(t.deadline)) byDay.get(t.deadline)!.push(t);
   }
-  for (const s of subtasks) {
+  for (const s of visibleSubs) {
     if (s.planned_date && byDay.has(s.planned_date)) byDay.get(s.planned_date)!.push(s);
   }
 
   // 未排期：真正没有日期的未完结任务（父无 deadline / 子无 planned_date），与显示哪一周无关
   const unscheduled = [
-    ...tasks.filter((t) => !t.deadline && t.status !== '已完成'),
-    ...subtasks.filter((s) => !s.planned_date && s.status !== '已完成'),
+    ...visibleTasks.filter((t) => !t.deadline && t.status !== '已完成'),
+    ...visibleSubs.filter((s) => !s.planned_date && s.status !== '已完成'),
   ];
   // 未排期栏是"现在"的排期工具：翻看非本周时隐藏（避免与历史/未来周的任务混淆）
   const isCurrentWeek = start <= today && today <= end;
 
   // 拖欠：日期早于当前显示周周一的未完结任务（超期超过一周也能捞回，可拖入本周排期）
   const backlog = [
-    ...tasks.filter((t) => t.deadline && t.deadline < start && t.status !== '已完成'),
-    ...subtasks.filter((s) => s.planned_date && s.planned_date < start && s.status !== '已完成'),
+    ...visibleTasks.filter((t) => t.deadline && t.deadline < start && t.status !== '已完成'),
+    ...visibleSubs.filter((s) => s.planned_date && s.planned_date < start && s.status !== '已完成'),
   ];
 
   function shiftWeek(delta: number) {
@@ -88,8 +105,102 @@ export default function WeekView({
     else if (overId === 'unscheduled') onMoveDate(task, null);
   }
 
+  return (
+    <WeekContext.Provider value={{coarse, onToggle, parentById, onOpen, savePriority, priorityBusy, today, byDay, prioritySort, priorityOf}}>
+    <div className="week-board panel rounded-3xl p-4 max-md:p-3">
+      {priorityError && <p role="alert" className="text-sm text-red-500 mb-2">{priorityError}</p>}
+      {/* 周导航 */}
+      <div className="flex items-center flex-wrap gap-3 max-md:gap-2 mb-3">
+        <button onClick={() => shiftWeek(-1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">‹</button>
+        <div>
+          <p className="font-mono text-sm font-bold tracking-wider">
+            {start.slice(5)} {weekdayCn(start)} ~ {end.slice(5)} {weekdayCn(end)}
+          </p>
+          <p className="text-[9px] font-mono tracking-[0.28em] text-ink-faint/70 mt-0.5">
+            WEEK · {start.slice(5).replace('-', '.')}—{end.slice(5).replace('-', '.')}
+          </p>
+        </div>
+        <button onClick={() => shiftWeek(1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">›</button>
+        {anchor !== today && (
+          <button
+            onClick={() => setAnchor(today)}
+            className="text-[11px] border border-line rounded-full px-2.5 py-0.5 text-ink-soft hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+          >
+            回到本周
+          </button>
+        )}
+        <select aria-label="筛选优先级" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="priority-filter"><option value="all">全部优先级</option>{priorityLabels.map((label, i) => <option key={i} value={i}>{label}</option>)}</select>
+        <label className="text-xs text-ink-soft flex items-center gap-1"><input type="checkbox" checked={prioritySort} onChange={(e) => setPrioritySort(e.target.checked)} />按优先级排序</label>
+        {isCurrentWeek && (
+          <button
+            onClick={() => setLaneOpen((v) => !v)}
+            className={`ml-auto text-[11px] border rounded-full px-2.5 py-0.5 font-mono transition-colors ${
+              laneOpen || unscheduled.length > 0
+                ? 'border-bean-orange/60 text-bean-orange'
+                : 'border-line text-ink-faint hover:border-kimi-400'
+            }`}
+            title="无日期的任务，可拖入日期列排期"
+          >
+            未排期 {unscheduled.length} {laneOpen ? '▾' : '▸'}
+          </button>
+        )}
+      </div>
+
+      {/* 未排期栏 + 七天列（同一 DndContext；翻周淡入过渡；移动端单列纵排） */}
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        {/* 拖欠横条：日期早于本周一的任务，可拖入本周某天 */}
+        {backlog.length > 0 && (
+          <div className="mb-2 rounded-2xl border border-line bg-white px-3 py-2">
+            <p className="text-[10px] font-mono text-bean-orange tracking-wider mb-1.5">
+              拖欠（{backlog.length}）{coarse ? '· 点开卡片可改日期' : '· 拖到某天完成排期'}
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 max-md:flex-col max-md:overflow-visible">
+              {backlog.map((t) => (
+                <div key={`b-${t.parent_task_id ? 's' : 't'}-${t.id}`} className="w-44 shrink-0 max-md:w-full">
+                  <Card t={t} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 items-start max-md:flex-col">
+          {laneOpen && isCurrentWeek && <UnscheduledLane items={unscheduled} Card={Card} />}
+          <div key={start} className="week-enter grid grid-cols-7 max-md:grid-cols-1 gap-2 flex-1 max-md:w-full items-start overflow-x-auto max-md:overflow-visible">
+            {days.map((d, i) => (
+              <DayColumn key={d} d={d} dayEn={DAY_EN[i]} />
+            ))}
+          </div>
+        </div>
+        <DragOverlay>
+          {dragging ? (
+            <div className="w-44 line-card p-2 !border-kimi-400 shadow-lg shadow-kimi-500/20 dragging-tilt">
+              <p className="text-[11px] font-medium">
+                {dragging.parent_task_id && dragging.parent_name ? `${dragging.parent_name} › ` : ''}
+                {dragging.name}
+              </p>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
+    </WeekContext.Provider>
+  );
+}
+
+
+// Stable component identities preserve focused controls and browser scroll anchors.
+interface WeekContextValue {
+  coarse: boolean; onToggle: (task: Task) => void; parentById: Map<number, Task>;
+  onOpen: (id: number) => void; savePriority: (id: number, priority: PriorityValue) => Promise<void>;
+  priorityBusy: boolean; today: string; byDay: Map<string, Task[]>; prioritySort: boolean;
+  priorityOf: (task: Task) => PriorityValue;
+}
+const WeekContext = createContext<WeekContextValue | null>(null);
+function useWeekContext() { const value = useContext(WeekContext); if (!value) throw new Error('WeekContext missing'); return value; }
+
   /** ✓ 快速完成切换（桌面 hover 显现 / 触屏常驻放大，已完成时始终常驻）；阻止冒泡避免触发拖拽/打开详情 */
   function ToggleBtn({ t, small }: { t: Task; small?: boolean }) {
+    const { coarse, onToggle } = useWeekContext();
     const done = t.status === '已完成';
     const sizeCls = small ? 'w-3 h-3' : coarse ? 'w-5 h-5' : 'w-3.5 h-3.5';
     return (
@@ -117,6 +228,7 @@ export default function WeekView({
 
   /** 卡片：subs 非空时为父子合并卡（父为主标题，子任务缩进小字行，整卡随父拖拽） */
   function Card({ t, subs = [] }: { t: Task; subs?: Task[] }) {
+    const { coarse, parentById, onOpen, savePriority, priorityBusy } = useWeekContext();
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
       id: `card-${t.id}`,
       data: { task: t },
@@ -135,21 +247,22 @@ export default function WeekView({
         {...attributes}
         style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined, opacity: isDragging ? 0.35 : 1 }}
         onClick={() => onOpen(isSub ? (t.parent_task_id as number) : t.id)}
-        className={`line-card card-lift group w-full text-left p-2 mb-1.5 select-none ${
+        className={`week-task line-card card-lift group w-full text-left p-2 mb-1.5 select-none ${
           coarse ? 'cursor-pointer max-md:p-3' : 'cursor-grab active:cursor-grabbing'
-        } ${done ? 'opacity-45' : ''} ${overdue || beyondParent ? '!border-bean-orange/60 !bg-bean-orange/10' : ''}`}
+        } ${done ? 'opacity-45' : ''} ${overdue || beyondParent ? '!border-bean-orange/40' : ''}`}
       >
         <div className="flex items-center gap-1 mb-0.5">
           <span className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: t.project_color || '#007CFF' }} />
-          <span className="text-[9px] max-md:text-[10px] text-ink-faint truncate">{t.project_name}</span>
+          <span className="text-xs text-ink-soft truncate">{t.project_name}</span>
           <span className="ml-auto shrink-0">
             <ToggleBtn t={t} />
           </span>
         </div>
-        <p className={`text-[11px] max-md:text-[13px] text-ink leading-snug ${done ? 'line-through' : ''}`}>
+        <p className={`text-sm font-medium text-ink leading-relaxed ${done ? 'line-through' : ''}`}>
           {isSub && t.parent_name && t.parent_name !== t.name ? `${t.parent_name} › ` : ''}
           {t.name}
         </p>
+        <div className="mt-2"><PrioritySelect value={t.priority} inherit={isSub ? parentById.get(t.parent_task_id as number)?.priority ?? null : undefined} disabled={priorityBusy} label={`${t.name}优先级`} onChange={(p) => savePriority(t.id, p)} /></div>
         {(overdue || beyondParent) && (
           <div className="flex flex-wrap items-center gap-1 mt-1">
             {overdue && (
@@ -191,6 +304,7 @@ export default function WeekView({
   }
 
   function DayColumn({ d, dayEn }: { d: string; dayEn: string }) {
+    const { today, byDay, prioritySort, priorityOf } = useWeekContext();
     const { setNodeRef, isOver } = useDroppable({ id: `day-${d}` });
     const isToday = d === today;
     const isPast = d < today;
@@ -202,11 +316,11 @@ export default function WeekView({
     const units = [
       ...parents.map((p) => ({ task: p, subs: subsHere.filter((s) => s.parent_task_id === p.id) })),
       ...subsHere.filter((s) => !parentIds.has(s.parent_task_id as number)).map((s) => ({ task: s, subs: [] as Task[] })),
-    ].sort((a, b) => Number(a.task.status === '已完成') - Number(b.task.status === '已完成')); // 已完成沉底
+    ].sort((a, b) => Number(a.task.status === '已完成') - Number(b.task.status === '已完成') || (prioritySort ? (priorityOf(a.task) ?? 5) - (priorityOf(b.task) ?? 5) : 0)); // 已完成沉底
     return (
       <div
         ref={setNodeRef}
-        className={`panel rounded-3xl flex flex-col min-w-[150px] max-md:min-w-0 transition-all ${
+        className={`week-day panel rounded-3xl flex flex-col min-w-[150px] max-md:min-w-0 transition-all ${
           isToday ? 'today-col breathe-glow' : isOver ? '!border-kimi-400 ring-1 ring-kimi-400/50' : ''
         }`}
       >
@@ -230,82 +344,6 @@ export default function WeekView({
     );
   }
 
-  return (
-    <div className="panel rounded-3xl p-4 max-md:p-3">
-      {/* 周导航 */}
-      <div className="flex items-center flex-wrap gap-3 max-md:gap-2 mb-3">
-        <button onClick={() => shiftWeek(-1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">‹</button>
-        <div>
-          <p className="font-mono text-sm font-bold tracking-wider">
-            {start.slice(5)} {weekdayCn(start)} ~ {end.slice(5)} {weekdayCn(end)}
-          </p>
-          <p className="text-[9px] font-mono tracking-[0.28em] text-ink-faint/70 mt-0.5">
-            WEEK · {start.slice(5).replace('-', '.')}—{end.slice(5).replace('-', '.')}
-          </p>
-        </div>
-        <button onClick={() => shiftWeek(1)} className="text-ink-faint hover:text-kimi-600 px-2 text-lg">›</button>
-        {anchor !== today && (
-          <button
-            onClick={() => setAnchor(today)}
-            className="text-[11px] border border-line rounded-full px-2.5 py-0.5 text-ink-soft hover:border-kimi-400 hover:text-kimi-600 transition-colors"
-          >
-            回到本周
-          </button>
-        )}
-        {isCurrentWeek && (
-          <button
-            onClick={() => setLaneOpen((v) => !v)}
-            className={`ml-auto text-[11px] border rounded-full px-2.5 py-0.5 font-mono transition-colors ${
-              laneOpen || unscheduled.length > 0
-                ? 'border-bean-orange/60 text-bean-orange'
-                : 'border-line text-ink-faint hover:border-kimi-400'
-            }`}
-            title="无日期的任务，可拖入日期列排期"
-          >
-            未排期 {unscheduled.length} {laneOpen ? '▾' : '▸'}
-          </button>
-        )}
-      </div>
-
-      {/* 未排期栏 + 七天列（同一 DndContext；翻周淡入过渡；移动端单列纵排） */}
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* 拖欠横条：日期早于本周一的任务，可拖入本周某天 */}
-        {backlog.length > 0 && (
-          <div className="mb-2 rounded-2xl border border-bean-orange/40 bg-bean-orange/10 px-3 py-2">
-            <p className="text-[10px] font-mono text-bean-orange tracking-wider mb-1.5">
-              拖欠（{backlog.length}）{coarse ? '· 点开卡片可改日期' : '· 拖到某天完成排期'}
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 max-md:flex-col max-md:overflow-visible">
-              {backlog.map((t) => (
-                <div key={`b-${t.parent_task_id ? 's' : 't'}-${t.id}`} className="w-44 shrink-0 max-md:w-full">
-                  <Card t={t} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="flex gap-2 items-start max-md:flex-col">
-          {laneOpen && isCurrentWeek && <UnscheduledLane items={unscheduled} Card={Card} />}
-          <div key={start} className="week-enter grid grid-cols-7 max-md:grid-cols-1 gap-2 flex-1 max-md:w-full items-start overflow-x-auto max-md:overflow-visible">
-            {days.map((d, i) => (
-              <DayColumn key={d} d={d} dayEn={DAY_EN[i]} />
-            ))}
-          </div>
-        </div>
-        <DragOverlay>
-          {dragging ? (
-            <div className="w-44 line-card p-2 !border-kimi-400 shadow-lg shadow-kimi-500/20 dragging-tilt">
-              <p className="text-[11px] font-medium">
-                {dragging.parent_task_id && dragging.parent_name ? `${dragging.parent_name} › ` : ''}
-                {dragging.name}
-              </p>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    </div>
-  );
-}
 
 /** 未排期栏：无日期任务集合，可拖入日期列；拖回此栏=取消排期 */
 function UnscheduledLane({ items, Card }: { items: Task[]; Card: (props: { t: Task }) => JSX.Element }) {

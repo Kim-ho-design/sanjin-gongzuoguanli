@@ -4,6 +4,7 @@
 // 定位：AI 挂掉 / 只想快速记一条时使用；批量录入、补记流水仍走上方 AI 输入框
 import { useState } from 'react';
 import type { Project } from '@/lib/types';
+import PrioritySelect, { PriorityValue } from './PrioritySelect';
 import { PixelLoader } from './Pixel';
 
 export default function QuickAdd({
@@ -13,6 +14,7 @@ export default function QuickAdd({
   projects: Project[];
   onAdded: (taskName: string) => void;
 }) {
+  const [priority, setPriority] = useState<PriorityValue>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [projectId, setProjectId] = useState<number>(0);
@@ -23,6 +25,7 @@ export default function QuickAdd({
 
   function reset() {
     setName('');
+    setPriority(null);
     setProjectId(0);
     setDeadline('');
     setIsToday(false);
@@ -44,6 +47,7 @@ export default function QuickAdd({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: n,
+          priority,
           project_id: projectId,
           deadline: deadline || null,
           is_today: isToday,
@@ -74,7 +78,7 @@ export default function QuickAdd({
 
   return (
     <div className="panel rounded-2xl px-4 py-3 flex flex-col gap-2.5 border-kimi-300">
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center flex-wrap">
         <input
           autoFocus
           value={name}
@@ -111,6 +115,7 @@ export default function QuickAdd({
           title="对外截止（可空）"
           className="input-dark px-2 py-1.5 text-sm font-mono"
         />
+        <PrioritySelect value={priority} onChange={setPriority} />
         <label className="flex items-center gap-1 text-xs text-ink-soft shrink-0 cursor-pointer select-none">
           <input type="checkbox" checked={isToday} onChange={(e) => setIsToday(e.target.checked)} />
           ☆ 今日

@@ -173,29 +173,33 @@ export default function HomePage() {
   const progress = splitByProgress([...filteredTasks, ...filteredSubtasks], todayStr());
 
   return (
-    <main className="min-h-screen ascii-bg pixel-dots flex flex-col">
+    <main className="min-h-screen kimi-workspace flex flex-col">
       {/* 顶栏 */}
-      <header className="flex items-center gap-3 max-md:gap-2 px-5 max-md:px-3 py-3 border-b border-line bg-panel/80 backdrop-blur">
+      <header className="flex items-center gap-3 max-md:gap-2 px-8 max-md:px-4 py-5 max-md:py-4 border-b border-line/70 bg-[#FAF9F6]">
         <AvatarLogo size={32} />
-        <h1 className="text-lg max-md:text-base font-bold tracking-wide">三金打工清单</h1>
-        <span className="text-[10px] font-mono text-ink-faint tracking-[0.25em] hidden sm:inline">
+        <h1 className="text-lg max-md:text-base font-bold tracking-tight">三金打工清单</h1>
+        <span className="text-[9px] font-mono text-ink-faint tracking-[0.12em] hidden lg:inline">
           PLAN · DO · LOG · REVIEW
         </span>
         <Link
           href="/calendar"
-          className="ml-auto text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+          className="ml-auto text-xs rounded-lg px-3 py-2 hover:bg-kimi-50 hover:text-kimi-600 transition-colors"
         >
-          📅 月视图
+          月视图
         </Link>
         <Link
           href="/report"
-          className="text-xs border border-line rounded-full px-3 py-1.5 hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+          className="text-xs rounded-lg px-3 py-2 hover:bg-kimi-50 hover:text-kimi-600 transition-colors"
         >
-          📊 周报
+          周报 ↗
         </Link>
       </header>
 
-      <div className="px-5 max-md:px-3 py-4 pb-24 md:pb-4 flex flex-col gap-4 flex-1 max-w-[1600px] w-full mx-auto">
+      <div className="px-8 max-md:px-4 py-6 max-md:py-4 pb-24 md:pb-6 flex flex-col gap-5 flex-1 max-w-[1600px] w-full mx-auto">
+        <div className="flex items-center justify-between gap-3 border-l-[3px] border-kimi-500 pl-3">
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight">把这一周，安排好。</h2>
+          <span className="hidden md:block text-[10px] font-mono tracking-wider text-kimi-500" aria-hidden="true">PLAN → DO → LOG → REVIEW ░▒▓</span>
+        </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {data && (
@@ -229,10 +233,10 @@ export default function HomePage() {
           <div className="fade-up flex gap-1.5 flex-wrap items-center" style={{ animationDelay: '140ms' }}>
             <button
               onClick={() => setFilterProject(0)}
-              className={`text-xs border rounded-full px-3 py-1 transition-colors ${
+              className={`text-xs border rounded-lg px-3 py-2 transition-colors ${
                 filterProject === 0
                   ? 'bg-kimi-500 text-white border-kimi-500'
-                  : 'border-line hover:border-kimi-400'
+                  : 'border-transparent text-ink-soft hover:bg-white hover:border-line'
               }`}
             >
               全部
@@ -241,10 +245,10 @@ export default function HomePage() {
               <span key={p.id} className="relative group">
                 <button
                   onClick={() => setFilterProject(p.id)}
-                  className={`text-xs border rounded-full px-3 py-1 transition-colors flex items-center gap-1.5 ${
+                  className={`text-xs border rounded-lg px-3 py-2 transition-colors flex items-center gap-1.5 ${
                     filterProject === p.id
                       ? 'bg-kimi-500 text-white border-kimi-500'
-                      : 'border-line hover:border-kimi-400'
+                      : 'border-transparent text-ink-soft hover:bg-white hover:border-line'
                   }`}
                 >
                   <span className="w-1.5 h-1.5 rounded-[2px]" style={{ backgroundColor: p.color }} />
@@ -287,7 +291,7 @@ export default function HomePage() {
               <button
                 onClick={() => setAddingProject(true)}
                 title="新增项目"
-                className="text-xs border border-dashed border-line rounded-full px-3 py-1 text-ink-faint hover:border-kimi-400 hover:text-kimi-600 transition-colors"
+                className="text-xs border border-dashed border-line rounded-lg px-3 py-2 text-ink-faint hover:border-kimi-400 hover:text-kimi-600 transition-colors"
               >
                 ＋ 项目
               </button>
@@ -304,6 +308,7 @@ export default function HomePage() {
               onOpen={(id) => setOpenTaskId(id)}
               onMoveDate={moveTaskDate}
               onToggle={toggleComplete}
+              onPriorityChanged={load}
             />
           </div>
         ) : (

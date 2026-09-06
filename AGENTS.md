@@ -1,5 +1,14 @@
 # AGENTS.md — AI 协作记忆文件
 
+## 当前视觉迭代（2026-09-05）
+
+- 用户已确认先制作 A/B/C 视觉对比稿，重点提升视觉质感；另纳入四象限任务优先级和头像收藏/桌面图标。
+- 分支：`feature/visual-comparison-v18`；产物与限制见 `docs/visual-v18/README.md`，可切换原型 `docs/visual-v18/index.html`，六张桌面/手机截图同目录。
+- 状态（2026-09-06）：用户选定 C 并授权实施；正式页面、四档优先级和头像图标已完成本地实现。62 项测试、lint、build 通过；隔离数据库浏览器回归通过。待本地验收，未部署/合并。
+- 优先级：tasks.priority 可空 1..4，旧任务 null；步骤 null 动态继承主任务，非空为单独覆盖。卡片、详情、手动新增和解析确认可编辑；周看板支持筛选与可选排序，默认不改变原排序。优先级不改变状态/日期/统计口径。
+- 图标：app/icon.png 与 apple-icon.png 复用 256px 头像；manifest 用同一头像。已移除旧 favicon.ico，图标资源不受密码门拦截。真实设备收藏/主屏幕效果待验收。
+- 本地预览 http://127.0.0.1:5190 使用 WORK_OS_DATA_DIR 指向临时目录中的本地数据副本；未刷新线上数据，正式 data/ 未被修改。截图见 docs/visual-v18/implementation/。
+
 > 每轮开发对话结束前更新本文件，确保下轮对话能准确恢复上下文。**禁止凭记忆臆测，以本文件和代码为准。**
 > **分工**：本文件管代码/技术/部署；产品背景、需求文档、视觉风格、业务规则见上级 `../AGENTS.md`。
 
@@ -111,3 +120,24 @@ curl -s -o /dev/null -w "%{http_code}" http://106.53.21.62:3000/
 npm run dev / npm test / npm run lint / npm run build
 git checkout -b feature/xxx   # 新功能必须先开分支
 ```
+
+## 预览数据同步修正（2026-09-06 11:43）
+
+用户明确授权下载线上完整最新快照用于验收。已通过 SQLite backup 读取一致性快照到独立本地临时目录（WORK_OS_DATA_DIR），预览端口仍为 5190。线上未修改，原本地预览副本保留。
+线上与预览 163 条任务的 id/name/project_id/status/deadline/planned_date/parent_task_id/completed_at 摘要完全一致。浏览器逐日核对本周 15 条、上周 11 条日期记录，全部正确归位；截图 implementation/live-week-0.png、live-week-1.png。
+这是 11:43 的线上快照，不持续自动同步。先前 22 条旧本地副本不再用于本次验收。
+
+## 优先级滚动修复（2026-09-06）
+
+WeekView 内嵌定义的 Card/DayColumn/ToggleBtn 在父组件更新时被重新创建，保存优先级会导致实际 DOM 重挂载。已移到模块级组件，通过 WeekContext 获取当前数据，保留组件身份与滚动锚点。未修改数据和业务规则。
+验证：62 项测试、lint、build 通过；scripts/verify-priority-scroll.cjs 拦截 PATCH、无数据写入，1280px 成功滚动 440→440，390px 成功 2266→2266，原节点保留；失败时错误提示带来 28px 高度变化但无回顶。预览 5190 已重启，仍使用 11:43 线上快照及此后本地验收改动。
+
+## v18 已上线（2026-09-06）
+
+用户完成本地验收并明确授权部署。运行版本 9418423（feature/visual-comparison-v18），已部署 https://work.sanjin.art 。服务器独立构建成功，仅重启 3000 端口，未覆盖 data/ 或 .env，未将本地预览优先级写回线上。
+
+验证：公开域名与服务器本地首页、/api/board 正常；163 条任务的 id/name/project_id/status/deadline/planned_date/parent_task_id/completed_at 摘要与切换前完全一致；priority 字段存在；头像与 manifest 访问正常。62 项测试、lint、build、滚动位置回归在上线前通过。
+
+备份：/root/backups/workos-pre-v18-20260906/runtime.tar.gz 与 work-os.db，保留 rollback/ 代码。首次切换的校验脚本误用 Response.ok() 自动回滚，纠正为 Response.ok 后第二次部署及数据检查通过。发布包和独立构建目录已清理。
+
+仓库：分支已推送，审核单 https://github.com/Kim-ho-design/sanjin-gongzuoguanli/pull/1 。审核单 mergeable=CONFLICTING，尚未合并。拉取 main 第一次连接重置，第二次自动审批因额度限制拒绝，未执行冲突处理；以后恢复时先 fetch 最新 main 再人工核对差异，勿覆盖历史改动。线上发布已完成，不受此影响。

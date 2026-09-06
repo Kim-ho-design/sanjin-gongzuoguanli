@@ -5,6 +5,7 @@ import type { ParseResult, Project } from '@/lib/types';
 import { TASK_STATUSES } from '@/lib/types';
 import type { ApplySummary } from '@/lib/apply';
 import { weekdayCn, prefillTaskFromLog } from '@/lib/utils';
+import PrioritySelect from './PrioritySelect';
 import { PixelLoader } from './Pixel';
 
 const INTENT_LABEL: Record<string, string> = {
@@ -216,11 +217,12 @@ export default function ConfirmCard({
                     />
                     {t.deadline && <span className="text-kimi-600">{weekdayCn(t.deadline)}</span>}
                   </label>
+                  <PrioritySelect value={t.priority} onChange={(priority) => updateTask(i, { priority })} />
                 </div>
                 {/* 子任务（可增删）：任务执行的排期 */}
                 <div className="mt-2 space-y-1">
                   {t.subtasks.map((s, si) => (
-                    <div key={si} className="flex items-center gap-1.5 text-[11px] font-mono">
+                    <div key={si} className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
                       <span className="text-ink-faint shrink-0">›</span>
                       <input
                         value={s.name}
@@ -235,6 +237,7 @@ export default function ConfirmCard({
                         title="计划哪天做"
                         className="input-dark px-1.5 py-1 text-[11px]"
                       />
+                      <PrioritySelect value={s.priority} inherit={t.priority ?? null} onChange={(priority) => updateSubtask(i, si, { priority })} />
                       <button
                         onClick={() =>
                           setEdited((e) => ({

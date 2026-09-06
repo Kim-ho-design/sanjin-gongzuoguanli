@@ -15,6 +15,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
   const tasks = db.prepare('SELECT * FROM tasks WHERE project_id = ?').all(params.id) as {
     id: number;
+    priority: number | null;
     name: string;
     status: string;
     deadline: string | null;
@@ -36,6 +37,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       project_name: project.name,
       task: {
         name: t.name,
+        priority: t.priority,
         status: t.status,
         deadline: t.deadline,
         planned_date: t.planned_date,

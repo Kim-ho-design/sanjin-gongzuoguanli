@@ -1,3 +1,4 @@
+import { isPriority } from '@/lib/priority';
 // 任务：手动新建 + 列表查询（GET 主要供 agent/CLI 用，支持 status/project_id 过滤）
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as {
+    priority?: unknown;
     name?: string;
     project_id?: number;
     status?: string;
@@ -52,6 +54,9 @@ export async function POST(req: NextRequest) {
     is_today?: boolean;
     parent_task_id?: number | null;
   };
+  if ('priority' in body && !isPriority(body.priority)) {
+    return NextResponse.json({ error: 'priority 必须为 1、2、3、4 或 null' }, { status: 400 });
+  }
   if (!body.name?.trim()) {
     return NextResponse.json({ error: '任务名必填' }, { status: 400 });
   }
@@ -81,8 +86,8 @@ export async function POST(req: NextRequest) {
   const completedAt = status === '已完成' ? nowStr() : null;
   const r = db
     .prepare(
-      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, parent_task_id, is_today, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, parent_task_id, is_today, completed_at, priority)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       body.name.trim(),
@@ -93,6 +98,7 @@ export async function POST(req: NextRequest) {
       parentId,
       parentId ? 0 : body.is_today ? 1 : 0,
       completedAt,
+      body.priority ?? null,
     );
   return NextResponse.json({ id: Number(r.lastInsertRowid) });
 }

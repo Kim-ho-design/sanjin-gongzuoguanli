@@ -1,3 +1,4 @@
+import { isPriority } from '@/lib/priority';
 // 待认领区：把「已删项目的任务」恢复到指定项目（连记录/交付物一起还原）
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, nextColor } from '@/lib/db';
@@ -10,6 +11,7 @@ interface DeletedTaskSnapshot {
   kind: 'project_deleted';
   project_name: string;
   task: {
+    priority?: number | null;
     name: string;
     status: string;
     deadline: string | null;
@@ -62,10 +64,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const status = t.status === '待确认审核' ? '已完成' : t.status === '待办事项' ? '待启动' : t.status;
   const r = db
     .prepare(
-      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, created_at, completed_at)
-       VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)`,
+      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, created_at, completed_at, priority)
+       VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
     )
-    .run(t.name, projectId, status, t.deadline, t.planned_date, t.is_today ? 1 : 0, t.created_at, t.completed_at);
+    .run(t.name, projectId, status, t.deadline, t.planned_date, t.is_today ? 1 : 0, t.created_at, t.completed_at, isPriority(t.priority) ? t.priority : null);
   const taskId = Number(r.lastInsertRowid);
 
   const insertLog = db.prepare(

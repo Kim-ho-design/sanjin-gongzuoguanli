@@ -1,3 +1,4 @@
+import { isPriority } from './priority';
 // 解析结果落库：用户确认后把 ParseResult 应用到数据库
 // 原则：能匹配就匹配，匹配不到按解析意图创建；挂不上的进待认领区
 import { getDb, nextColor } from './db';
@@ -51,10 +52,10 @@ function createTask(pt: ParsedTask, projectId: number, parentTaskId: number | nu
   const completedAt = status === '已完成' ? (doneAt ?? nowStr()) : null;
   const r = db
     .prepare(
-      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, completed_at)
-       VALUES (?, ?, ?, ?, NULL, 0, ?, ?)`,
+      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, completed_at, priority)
+       VALUES (?, ?, ?, ?, NULL, 0, ?, ?, ?)`,
     )
-    .run(pt.name, projectId, status, pt.deadline, parentTaskId, completedAt);
+    .run(pt.name, projectId, status, pt.deadline, parentTaskId, completedAt, pt.priority ?? null);
   return Number(r.lastInsertRowid);
 }
 
@@ -62,11 +63,11 @@ function createTask(pt: ParsedTask, projectId: number, parentTaskId: number | nu
 function createSubtasks(pt: ParsedTask, parentId: number, projectId: number) {
   const db = getDb();
   const insert = db.prepare(
-    `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today)
-     VALUES (?, ?, '待启动', NULL, ?, 0, ?, 0)`,
+    `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, priority)
+     VALUES (?, ?, '待启动', NULL, ?, 0, ?, 0, ?)`,
   );
   for (const st of pt.subtasks) {
-    if (st.name.trim()) insert.run(st.name.trim(), projectId, st.planned_date, parentId);
+    if (st.name.trim()) insert.run(st.name.trim(), projectId, st.planned_date, parentId, st.priority ?? null);
   }
 }
 
@@ -82,6 +83,12 @@ export function applyParseResult(
   taskProjects?: ({ mode: 'existing'; project_id: number } | null)[],
 ): ApplySummary {
   const db = getDb();
+  // Validate before project creation or any task writes.
+  for (const task of parsed.tasks) {
+    for (const item of [task, ...task.subtasks]) {
+      if (item.priority !== undefined && !isPriority(item.priority)) throw new Error('Invalid priority');
+    }
+  }
   const summary: ApplySummary = { actions: [], task_ids: [], unclaimed_id: null };
   const parsedJson = JSON.stringify(parsed);
   // 跨日期补记：log.date 存在时，日志和完成时间都记到那一天（时间部分统一 18:00）
@@ -128,6 +135,9 @@ export function applyParseResult(
     if (pt.matched_existing) {
       const existing = matchTask(pt.name);
       if (existing) {
+        if (pt.priority !== undefined) {
+          db.prepare('UPDATE tasks SET priority = ? WHERE id = ?').run(pt.priority, existing.id);
+        }
         resolvedTaskIds.push({ pt, id: existing.id, existed: true });
         if (!createdByName.has(norm(pt.name))) createdByName.set(norm(pt.name), existing.id);
         if (projectId === null) projectId = existing.project_id;
@@ -172,6 +182,11 @@ export function applyParseResult(
 
   if (parsed.intent === 'update_task') {
     for (const { pt, id } of resolvedTaskIds) {
+      // 只改优先级时不能触发旧的“未给状态默认完成”兜底。
+      if (pt.priority !== undefined && !pt.status) {
+        summary.actions.push('已更新优先级');
+        continue;
+      }
       const target = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '已完成';
       db.prepare(
         `UPDATE tasks SET status = ?, completed_at = CASE WHEN ? = '已完成' THEN ? ELSE completed_at END WHERE id = ?`,
