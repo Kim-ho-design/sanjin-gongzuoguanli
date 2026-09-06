@@ -297,3 +297,32 @@ body {
 .report-md th {
   background: #F6F6F4;
 }
+
+/* C visual direction: warm surfaces, quiet grid, readable task hierarchy. */
+.kimi-workspace { -webkit-font-smoothing: antialiased; }
+.priority-select, .priority-filter { max-width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 5px 6px; font-size: 11px; line-height: 1.5; cursor: pointer; background: #f0f1f3; color: #626973; }
+.priority-select:disabled { opacity: .6; cursor: wait; }
+.priority-1 { background: #fceeed; color: #a43630; }
+.priority-2 { background: #eaf2ff; color: #2461ab; }
+.priority-3 { background: #fff3e4; color: #885315; }
+.priority-4 { background: #f0f1f3; color: #626973; }
+.kimi-workspace .week-board { background: transparent; border: 0; padding: 0; }
+.kimi-workspace .week-day { background: #f0efeb; border: 1px solid transparent; border-radius: 12px; }
+.kimi-workspace .week-day.today-col { background: #e5f2ff; }
+.kimi-workspace .week-task { background: white; padding: 12px 10px; border-color: transparent; border-radius: 10px; margin-bottom: 8px; }
+.kimi-workspace .week-task:hover { border-color: #a0daf7; }
+@media(max-width:767px) { .priority-select { min-height:32px; } .kimi-workspace .week-task { padding:14px; } }
+.kimi-workspace .panel { box-shadow: none; }
+.capture-box { background: #f0efeb; }
+.stats-strip > :not(:last-child) { border-right: 1px solid #f0efeb; }
+.kimi-workspace .today-col { border: 1px solid #c4e1ff !important; }
+.kimi-workspace .breathe-glow,
+.kimi-workspace .overdue-pulse,
+.kimi-workspace .led-glow { animation: none; }
+.kimi-workspace .card-lift:hover { transform: translateY(-1px); box-shadow: 0 3px 10px #12121208; }
+.kimi-workspace :is(button, a, select):focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+@media (max-width: 767px) {
+  .capture-box { background: #fff; box-shadow: 0 3px 20px #1212120a; }
+  .stats-strip > :nth-child(2) { border-right: 0; }
+  .stats-strip > :nth-child(n+3) { border-top: 1px solid #f0efeb; }
+}

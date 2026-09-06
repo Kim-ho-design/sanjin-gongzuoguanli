@@ -1,3 +1,4 @@
+import type { Priority } from './priority';
 // 共享类型定义（前后端通用）
 
 export const TASK_STATUSES = ['待启动', '进行中', '已完成'] as const;
@@ -15,6 +16,7 @@ export interface Project {
 }
 
 export interface Task {
+  priority?: Priority | null;
   id: number;
   name: string;
   project_id: number;
@@ -89,11 +91,13 @@ export interface ParsedProject {
 }
 
 export interface ParsedSubtask {
+  priority?: Priority | null;
   name: string;
   planned_date: string | null;
 }
 
 export interface ParsedTask {
+  priority?: Priority | null;
   name: string;
   matched_existing: boolean;
   status: string;

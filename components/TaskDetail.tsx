@@ -1,5 +1,6 @@
 'use client';
 
+import PrioritySelect, { PriorityValue } from './PrioritySelect';
 import { useEffect, useState } from 'react';
 import type { Log, Deliverable, Task, Project } from '@/lib/types';
 
@@ -7,7 +8,7 @@ interface Detail {
   task: Task;
   logs: Log[];
   deliverables: Deliverable[];
-  sub_tasks: { id: number; name: string; status: string; planned_date: string | null; deadline: string | null }[];
+  sub_tasks: { priority?: PriorityValue; id: number; name: string; status: string; planned_date: string | null; deadline: string | null }[];
 }
 
 export default function TaskDetail({
@@ -20,6 +21,15 @@ export default function TaskDetail({
   onChanged: () => void;
 }) {
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [priorityError, setPriorityError] = useState('');
+  const [priorityBusy, setPriorityBusy] = useState(false);
+  async function savePriority(id: number, priority: PriorityValue) {
+    setPriorityBusy(true); setPriorityError('');
+    try { const res = await fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority }) });
+      if (!res.ok) throw new Error('优先级保存失败，请重试');
+      await load(); onChanged();
+    } catch { setPriorityError('优先级保存失败，请重试'); } finally { setPriorityBusy(false); }
+  }
   const [logText, setLogText] = useState('');
   const [newSubName, setNewSubName] = useState('');
   const [newSubDate, setNewSubDate] = useState('');
@@ -213,6 +223,7 @@ export default function TaskDetail({
           <button onClick={onClose} className="text-ink-faint hover:text-ink text-lg leading-none px-1">×</button>
         </div>
 
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-ink-soft">优先级 <PrioritySelect value={task.priority} disabled={priorityBusy} onChange={(p) => savePriority(task.id, p)} />{priorityError && <p role="alert" className="text-red-500">{priorityError}</p>}</div>
         {/* 日期信息（均可编辑） */}
         <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-mono text-ink-soft mb-4 border border-line rounded-lg p-2.5">
           <label className="flex items-center gap-1" title="承诺交给别人的那天">
@@ -266,7 +277,7 @@ export default function TaskDetail({
             {sub_tasks.map((st) => {
               const done = st.status === '已完成';
               return (
-                <div key={st.id} className="flex items-center gap-1.5 group">
+                <div key={st.id} className="flex items-center gap-1.5 group flex-wrap">
                   <button
                     onClick={() => toggleSub(st)}
                     title={done ? '取消完成' : '完成'}
@@ -307,6 +318,7 @@ export default function TaskDetail({
                   >
                     ×
                   </button>
+                  <PrioritySelect value={st.priority} inherit={task.priority ?? null} disabled={priorityBusy} label={`${st.name}优先级`} onChange={(p) => savePriority(st.id, p)} />
                 </div>
               );
             })}

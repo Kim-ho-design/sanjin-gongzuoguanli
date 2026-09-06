@@ -1,3 +1,4 @@
+import { isPriority } from './priority';
 // DeepSeek 调用 + 输出 schema 校验（需求文档 4.1，锁死）
 import type { ParseResult, ParseIntent } from './types';
 import { TASK_STATUSES } from './types';
@@ -136,6 +137,7 @@ export function validateParseResult(raw: unknown): ParseResult {
 
   const tasks = Array.isArray(o.tasks)
     ? (o.tasks as Record<string, unknown>[]).map((t) => ({
+        ...(t?.priority !== undefined && isPriority(t.priority) ? { priority: t.priority } : {}),
         name: typeof t?.name === 'string' ? t.name : '',
         matched_existing: t?.matched_existing === true,
         status: TASK_STATUSES.includes(t?.status as never) ? (t.status as string) : '',
@@ -144,6 +146,7 @@ export function validateParseResult(raw: unknown): ParseResult {
         subtasks: Array.isArray(t?.subtasks)
           ? (t.subtasks as Record<string, unknown>[])
               .map((s) => ({
+                ...(s?.priority !== undefined && isPriority(s.priority) ? { priority: s.priority } : {}),
                 name: typeof s?.name === 'string' ? s.name : '',
                 planned_date:
                   typeof s?.planned_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.planned_date)

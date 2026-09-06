@@ -4,6 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "三金打工清单",
   description: "计划—执行—记录—周报 闭环的个人工作管理系统",
+  icons: { icon: '/icon.png', apple: '/apple-icon.png' },
+  manifest: '/manifest.webmanifest',
 };
 
 // 移动端适配（v14）：按设备宽度渲染，禁止双击缩放影响点按

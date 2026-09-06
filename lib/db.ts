@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.WORK_OS_DATA_DIR || path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'work-os.db');
 
 // Kimi 品牌配色（v17 起，对齐官方品牌手册）：只取白字可读的深中色
@@ -39,6 +39,7 @@ export const SCHEMA_SQL = `
       is_today INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
       completed_at TEXT,
+      priority INTEGER CHECK (priority IN (1, 2, 3, 4)),
       prev_status TEXT
     );
     CREATE TABLE IF NOT EXISTS logs (
@@ -69,6 +70,14 @@ export const SCHEMA_SQL = `
     CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at);
   `;
 
+/** Nullable migration leaves historical tasks unset; safe on every startup. */
+export function migratePriority(db: Database.Database): void {
+  const columns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
+  if (!columns.some((column) => column.name === 'priority')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN priority INTEGER CHECK (priority IN (1, 2, 3, 4))');
+  }
+}
+
 function createDb(): Database.Database {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   const db = new Database(DB_PATH);
@@ -76,6 +85,7 @@ function createDb(): Database.Database {
   db.pragma('foreign_keys = ON');
 
   db.exec(SCHEMA_SQL);
+  migratePriority(db);
 
   // v4 迁移：旧「归档」状态并入「已完成」（归档分类已改为待办事项）
   db.prepare(`UPDATE tasks SET status = '已完成' WHERE status = '归档'`).run();

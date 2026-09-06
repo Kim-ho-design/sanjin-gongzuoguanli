@@ -1,3 +1,4 @@
+import { isPriority } from '@/lib/priority';
 // 任务详情 / 更新 / 删除
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -22,13 +23,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     .all(params.id);
   const deliverables = db.prepare('SELECT * FROM deliverables WHERE task_id = ?').all(params.id);
   const subTasks = db
-    .prepare('SELECT id, name, status, planned_date, deadline FROM tasks WHERE parent_task_id = ?')
+    .prepare('SELECT id, name, status, planned_date, deadline, priority, parent_task_id FROM tasks WHERE parent_task_id = ?')
     .all(params.id);
   return NextResponse.json({ task, logs, deliverables, sub_tasks: subTasks });
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const body = (await req.json()) as Partial<{
+    priority: unknown;
     name: string;
     status: string;
     deadline: string | null;
@@ -37,6 +39,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     project_id: number;
     completed_date: string | null;
   }>;
+  if ('priority' in body && !isPriority(body.priority)) {
+    return NextResponse.json({ error: 'priority 必须为 1、2、3、4 或 null' }, { status: 400 });
+  }
   const db = getDb();
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(params.id) as
     | { status: string; parent_task_id: number | null }
@@ -63,6 +68,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const sets: string[] = [];
   const vals: unknown[] = [];
+  if (body.priority !== undefined) {
+    sets.push('priority = ?');
+    vals.push(body.priority);
+  }
   if (body.name !== undefined) {
     sets.push('name = ?');
     vals.push(body.name);
