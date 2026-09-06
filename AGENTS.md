@@ -131,3 +131,13 @@ git checkout -b feature/xxx   # 新功能必须先开分支
 
 WeekView 内嵌定义的 Card/DayColumn/ToggleBtn 在父组件更新时被重新创建，保存优先级会导致实际 DOM 重挂载。已移到模块级组件，通过 WeekContext 获取当前数据，保留组件身份与滚动锚点。未修改数据和业务规则。
 验证：62 项测试、lint、build 通过；scripts/verify-priority-scroll.cjs 拦截 PATCH、无数据写入，1280px 成功滚动 440→440，390px 成功 2266→2266，原节点保留；失败时错误提示带来 28px 高度变化但无回顶。预览 5190 已重启，仍使用 11:43 线上快照及此后本地验收改动。
+
+## v18 已上线（2026-09-06）
+
+用户完成本地验收并明确授权部署。运行版本 9418423（feature/visual-comparison-v18），已部署 https://work.sanjin.art 。服务器独立构建成功，仅重启 3000 端口，未覆盖 data/ 或 .env，未将本地预览优先级写回线上。
+
+验证：公开域名与服务器本地首页、/api/board 正常；163 条任务的 id/name/project_id/status/deadline/planned_date/parent_task_id/completed_at 摘要与切换前完全一致；priority 字段存在；头像与 manifest 访问正常。62 项测试、lint、build、滚动位置回归在上线前通过。
+
+备份：/root/backups/workos-pre-v18-20260906/runtime.tar.gz 与 work-os.db，保留 rollback/ 代码。首次切换的校验脚本误用 Response.ok() 自动回滚，纠正为 Response.ok 后第二次部署及数据检查通过。发布包和独立构建目录已清理。
+
+仓库：分支已推送，审核单 https://github.com/Kim-ho-design/sanjin-gongzuoguanli/pull/1 。审核单 mergeable=CONFLICTING，尚未合并。拉取 main 第一次连接重置，第二次自动审批因额度限制拒绝，未执行冲突处理；以后恢复时先 fetch 最新 main 再人工核对差异，勿覆盖历史改动。线上发布已完成，不受此影响。
