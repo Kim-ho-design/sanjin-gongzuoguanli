@@ -43,7 +43,9 @@ export default function ReportPage() {
     setCopied(false);
     try {
       const res = await fetch(`/api/report?start=${start}&end=${end}&type=${type}`);
-      const data = await res.json();
+      // 审查修复 L7：网关超时等返回 HTML 错误页，裸 res.json() 会抛 "Unexpected token '<'" 天书
+      const data = await res.json().catch(() => null);
+      if (!data) throw new Error('服务开小差了，请稍后重试');
       if (!res.ok) throw new Error(data.error || '生成失败');
       setMarkdown(data.markdown);
       setFallback(data.fallback === true);

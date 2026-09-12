@@ -24,12 +24,20 @@ export async function GET(req: NextRequest) {
     args.push(status);
   }
   if (projectId) {
+    const pid = Number(projectId);
+    if (!Number.isFinite(pid)) {
+      return NextResponse.json({ error: 'project_id 无效' }, { status: 400 });
+    }
     conds.push('t.project_id = ?');
-    args.push(Number(projectId));
+    args.push(pid);
   }
   if (parentId) {
+    const ppid = Number(parentId);
+    if (!Number.isFinite(ppid)) {
+      return NextResponse.json({ error: 'parent_task_id 无效' }, { status: 400 });
+    }
     conds.push('t.parent_task_id = ?');
-    args.push(Number(parentId));
+    args.push(ppid);
   }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
   const tasks = db
@@ -66,9 +74,13 @@ export async function POST(req: NextRequest) {
   let projectId = body.project_id ?? null;
   if (body.parent_task_id) {
     const parent = db
-      .prepare('SELECT id, project_id FROM tasks WHERE id = ?')
-      .get(body.parent_task_id) as { id: number; project_id: number } | undefined;
+      .prepare('SELECT id, project_id, parent_task_id FROM tasks WHERE id = ?')
+      .get(body.parent_task_id) as { id: number; project_id: number; parent_task_id: number | null } | undefined;
     if (!parent) return NextResponse.json({ error: '父任务不存在' }, { status: 404 });
+    // 审查修复 L11：只允许两层结构，子任务下不能再挂子任务（否则从所有视图消失）
+    if (parent.parent_task_id !== null) {
+      return NextResponse.json({ error: '不能在子任务下再建子任务' }, { status: 400 });
+    }
     parentId = parent.id;
     projectId = parent.project_id;
   }

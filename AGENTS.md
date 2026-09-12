@@ -1,5 +1,16 @@
 # AGENTS.md — AI 协作记忆文件
 
+## 当前迭代（2026-09-12，v19 待本地验收）
+
+- 分支 `feature/notes-llm-status`，三件套：随手记 + DeepSeek 余额状态灯 + 全量对抗性审查修复。
+- **随手记**：顶栏「✎ 随手记」→ 浮窗（桌面居中/移动端贴底），记「日期+一句话」、按月翻看、`✦ AI 总结本月`（DeepSeek 主题聚类复盘，失败回退按周模板）。新表 `notes`；`lib/notes.ts`（仿 report.ts 两层）；API `GET/POST /api/notes`、`DELETE /api/notes/[id]`、`GET /api/notes/summary?month=`。
+- **余额状态灯**：顶栏 8px 圆点（正常淡蓝/低额橙/失败红），点击弹金额+检查时间+重新检查。`lib/balance.ts`（服务端代理 api.deepseek.com/user/balance，key 不出服务端，缓存 5min，`?force=1` 跳过；低额阈值 `LLM_BALANCE_LOW_CNY` 默认 ¥5）+ `GET /api/llm-status`。
+- **对抗性审查修复**：13 项确认 bug 已修（M1 apply/PATCH 状态语义对齐、M2 多步写全事务化、M3 乐观更新失败改重取、L1/L2 apply 不丢任务/子任务、L5/L6/L9/L11 输入校验、L7/L8/L13 前端容错、L10 迁移竞态、L12 失败反馈、O8 移除死字段开关、M4 缓解恢复快照 planned_date 归位）。完整清单见 `docs/superpowers/specs/2026-09-12-daily-notes-llm-status-design.md`。
+- 已知遗留：M4 完整层级重建（快照未存父子关系）、L3 登录/parse 无限速（建议 nginx limit_req）、L4 时序安全比较（Edge Runtime 取舍）。
+- 验收：95 测试全绿 + lint/build 零错误 + Playwright 冒烟（`scripts/smoke-v19.cjs`，截图在 `../../反馈截图/v19-smoke/`）；本地预览 http://127.0.0.1:5190（WORK_OS_DATA_DIR 数据副本，含 2 条种子随手记）。
+- 种子数据（2026-09-11，用户口述）：进度把握不佳道具没提前购买到位 / 一站式一条咨询超时。本地已写入预览库；**部署后需写一次线上库**（Bearer token POST /api/notes）。
+- ⚠️ dev 与 build 共用 .next：**严禁 dev 运行中跑 build**（本轮踩过，重启 dev 才恢复）。
+
 ## 当前视觉迭代（2026-09-05）
 
 - 用户已确认先制作 A/B/C 视觉对比稿，重点提升视觉质感；另纳入四象限任务优先级和头像收藏/桌面图标。

@@ -21,12 +21,14 @@ export default function UnclaimedPanel({
   projects,
   onClose,
   onChanged,
+  onError,
 }: {
   unclaimed: Unclaimed[];
   tasks: Task[];
   projects: Project[];
   onClose: () => void;
   onChanged: () => void;
+  onError?: (msg: string) => void;
 }) {
   const [claimTarget, setClaimTarget] = useState<Record<number, number | ''>>({});
   const [restoreTarget, setRestoreTarget] = useState<Record<number, string>>({});
@@ -36,11 +38,17 @@ export default function UnclaimedPanel({
   async function claim(id: number) {
     const taskId = claimTarget[id];
     if (!taskId) return;
-    await fetch(`/api/unclaimed/${id}/claim`, {
+    const res = await fetch(`/api/unclaimed/${id}/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task_id: taskId }),
     });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      onError?.(`认领失败：${(d as { error?: string }).error || '请重试'}`);
+      onChanged(); // 失败也刷新，同步服务端真实状态
+      return;
+    }
     onChanged();
   }
 
@@ -52,16 +60,27 @@ export default function UnclaimedPanel({
         ? { new_project_name: (restoreNewName[id] ?? '').trim() }
         : { project_id: Number(sel) };
     if (sel === '__new' && !body.new_project_name) return;
-    await fetch(`/api/unclaimed/${id}/restore`, {
+    const res = await fetch(`/api/unclaimed/${id}/restore`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      onError?.(`恢复失败：${(d as { error?: string }).error || '请重试'}`);
+      onChanged();
+      return;
+    }
     onChanged();
   }
 
   async function discard(id: number) {
-    await fetch(`/api/unclaimed/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/unclaimed/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      onError?.('删除失败，请重试');
+      onChanged();
+      return;
+    }
     onChanged();
   }
 

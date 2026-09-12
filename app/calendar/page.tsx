@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AvatarLogo, PixelLoader } from '@/components/Pixel';
 import { pressureLevel, pressureScore, PRESSURE_LABELS } from '@/lib/pressure';
@@ -49,6 +49,8 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<DayDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  // 审查修复 L8：连点不同日期时，慢响应不能覆盖快响应——用序号丢弃过期响应
+  const detailSeq = useRef(0);
 
   const mStr = monthStr(cursor);
   const today = dateStr(new Date());
@@ -66,11 +68,12 @@ export default function CalendarPage() {
   }, [load]);
 
   async function selectDay(d: string) {
+    const seq = ++detailSeq.current;
     setSelected(d);
     setLoadingDetail(true);
     const res = await fetch(`/api/calendar/day?date=${d}`);
-    if (res.ok) setDetail(await res.json());
-    setLoadingDetail(false);
+    if (res.ok && seq === detailSeq.current) setDetail(await res.json());
+    if (seq === detailSeq.current) setLoadingDetail(false);
   }
 
   function shiftMonth(delta: number) {

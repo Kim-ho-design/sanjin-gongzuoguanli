@@ -64,17 +64,29 @@ export const SCHEMA_SQL = `
       parsed TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+    CREATE TABLE IF NOT EXISTS notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      note_date TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
     CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_logs_task ON logs(task_id);
     CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(note_date);
   `;
 
-/** Nullable migration leaves historical tasks unset; safe on every startup. */
+/** Nullable migration leaves historical tasks unset; safe on every startup.
+ *  审查修复 L10：并发首次启动都检测到缺列时会双 ALTER，吞掉 duplicate column 视为成功 */
 export function migratePriority(db: Database.Database): void {
   const columns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
   if (!columns.some((column) => column.name === 'priority')) {
-    db.exec('ALTER TABLE tasks ADD COLUMN priority INTEGER CHECK (priority IN (1, 2, 3, 4))');
+    try {
+      db.exec('ALTER TABLE tasks ADD COLUMN priority INTEGER CHECK (priority IN (1, 2, 3, 4))');
+    } catch (e) {
+      if (!(e instanceof Error && /duplicate column/i.test(e.message))) throw e;
+    }
   }
 }
 
@@ -162,7 +174,13 @@ function createDb(): Database.Database {
   const hasPrevStatus = (db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[]).some(
     (c) => c.name === 'prev_status',
   );
-  if (!hasPrevStatus) db.exec(`ALTER TABLE tasks ADD COLUMN prev_status TEXT`);
+  if (!hasPrevStatus) {
+    try {
+      db.exec(`ALTER TABLE tasks ADD COLUMN prev_status TEXT`);
+    } catch (e) {
+      if (!(e instanceof Error && /duplicate column/i.test(e.message))) throw e;
+    }
+  }
 
   // 首次启动：写入预置项目
   const count = (db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }).c;

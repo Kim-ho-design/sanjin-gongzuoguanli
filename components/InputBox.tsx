@@ -28,7 +28,8 @@ export default function InputBox({
       const data = await res.json().catch(() => null);
       if (!data) throw new Error('服务开小差了，请稍后重试');
       if (!res.ok) throw new Error(data.error || '解析失败');
-      setText('');
+      // 审查修复 L13：仅当输入框内容仍是提交时的那句才清空，避免吞掉飞行期间新输入的下一句话
+      setText((cur) => (cur === text ? '' : cur));
       onParsed(input, data.parsed as ParseResult);
     } catch (e) {
       setError(e instanceof Error ? e.message : '解析失败，请重试');

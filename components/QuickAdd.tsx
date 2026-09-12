@@ -19,7 +19,6 @@ export default function QuickAdd({
   const [name, setName] = useState('');
   const [projectId, setProjectId] = useState<number>(0);
   const [deadline, setDeadline] = useState('');
-  const [isToday, setIsToday] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,7 +27,6 @@ export default function QuickAdd({
     setPriority(null);
     setProjectId(0);
     setDeadline('');
-    setIsToday(false);
     setError('');
   }
 
@@ -50,7 +48,6 @@ export default function QuickAdd({
           priority,
           project_id: projectId,
           deadline: deadline || null,
-          is_today: isToday,
         }),
       });
       const data = await res.json();
@@ -116,10 +113,6 @@ export default function QuickAdd({
           className="input-dark px-2 py-1.5 text-sm font-mono"
         />
         <PrioritySelect value={priority} onChange={setPriority} />
-        <label className="flex items-center gap-1 text-xs text-ink-soft shrink-0 cursor-pointer select-none">
-          <input type="checkbox" checked={isToday} onChange={(e) => setIsToday(e.target.checked)} />
-          ☆ 今日
-        </label>
         <button
           onClick={submit}
           disabled={loading || !name.trim()}

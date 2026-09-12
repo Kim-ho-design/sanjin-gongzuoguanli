@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { TASK_STATUSES } from '@/lib/types';
 import { nowStr, isValidDateStr } from '@/lib/utils';
+import { cascadeCompleteChildren, restoreCascadeChildren } from '@/lib/task-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,11 +43,21 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if ('priority' in body && !isPriority(body.priority)) {
     return NextResponse.json({ error: 'priority 必须为 1、2、3、4 或 null' }, { status: 400 });
   }
+  if (body.name !== undefined && !body.name.trim()) {
+    return NextResponse.json({ error: '任务名不能为空' }, { status: 400 });
+  }
+  if (body.completed_date !== undefined && body.completed_date !== null && !isValidDateStr(body.completed_date)) {
+    return NextResponse.json({ error: 'completed_date 格式应为 YYYY-MM-DD' }, { status: 400 });
+  }
   const db = getDb();
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(params.id) as
     | { status: string; parent_task_id: number | null }
     | undefined;
   if (!existing) return NextResponse.json({ error: '任务不存在' }, { status: 404 });
+  if (body.project_id !== undefined) {
+    const proj = db.prepare('SELECT id FROM projects WHERE id = ?').get(body.project_id);
+    if (!proj) return NextResponse.json({ error: '目标项目不存在' }, { status: 400 });
+  }
 
   // 日期校验：格式必须合法；父任务不写 planned_date（排期用子任务）、子任务不写 deadline（恒 null）
   if (body.deadline !== undefined) {
@@ -68,13 +79,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const sets: string[] = [];
   const vals: unknown[] = [];
+  // 级联动作先记账，最终随主 UPDATE 一起进事务执行（审查修复 M2：多步写原子化）
+  let cascadeCompleteAt: string | null = null;
+  let cascadeRestore = false;
   if (body.priority !== undefined) {
     sets.push('priority = ?');
     vals.push(body.priority);
   }
   if (body.name !== undefined) {
     sets.push('name = ?');
-    vals.push(body.name);
+    vals.push(body.name.trim());
   }
   if (body.status !== undefined) {
     if (!TASK_STATUSES.includes(body.status as never)) {
@@ -83,25 +97,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     sets.push('status = ?');
     vals.push(body.status);
     if (body.status === '已完成') {
+      // 同请求内完成时间统一：手动修正 completed_date 时级联子任务用同一时间，避免父子落不同天（审查修复 L9）
+      const at = body.completed_date ? `${body.completed_date} 12:00:00` : nowStr();
       sets.push('completed_at = ?');
-      vals.push(nowStr());
-      // 父任务完成 → 未完成的子任务一并完成，原状态存入 prev_status 供重新打开时恢复
-      if (existing.parent_task_id === null) {
-        db.prepare(
-          `UPDATE tasks SET prev_status = status, status = '已完成', completed_at = ?
-           WHERE parent_task_id = ? AND status != '已完成'`,
-        ).run(nowStr(), params.id);
-      }
+      vals.push(at);
+      if (existing.parent_task_id === null) cascadeCompleteAt = at;
     } else {
       if (existing.status === '已完成') {
         sets.push('completed_at = NULL');
-        // 父任务重新打开 → 恢复上次被级联完成的子任务到各自原状态
-        if (existing.parent_task_id === null) {
-          db.prepare(
-            `UPDATE tasks SET status = prev_status, completed_at = NULL, prev_status = NULL
-             WHERE parent_task_id = ? AND prev_status IS NOT NULL AND status = '已完成'`,
-          ).run(params.id);
-        }
+        if (existing.parent_task_id === null) cascadeRestore = true;
       }
       // 子任务被单独改状态 → 清掉 prev_status，避免脏数据导致误恢复
       if (existing.parent_task_id !== null) {
@@ -132,15 +136,22 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
   if (sets.length === 0) return NextResponse.json({ ok: true });
   vals.push(params.id);
-  db.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+  const taskId = Number(params.id);
+  db.transaction(() => {
+    if (cascadeCompleteAt) cascadeCompleteChildren(taskId, cascadeCompleteAt);
+    if (cascadeRestore) restoreCascadeChildren(taskId);
+    db.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+  })();
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const db = getDb();
-  db.prepare('DELETE FROM deliverables WHERE task_id = ?').run(params.id);
-  db.prepare('DELETE FROM logs WHERE task_id = ?').run(params.id);
-  db.prepare('UPDATE tasks SET parent_task_id = NULL WHERE parent_task_id = ?').run(params.id);
-  db.prepare('DELETE FROM tasks WHERE id = ?').run(params.id);
+  db.transaction(() => {
+    db.prepare('DELETE FROM deliverables WHERE task_id = ?').run(params.id);
+    db.prepare('DELETE FROM logs WHERE task_id = ?').run(params.id);
+    db.prepare('UPDATE tasks SET parent_task_id = NULL WHERE parent_task_id = ?').run(params.id);
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(params.id);
+  })();
   return NextResponse.json({ ok: true });
 }

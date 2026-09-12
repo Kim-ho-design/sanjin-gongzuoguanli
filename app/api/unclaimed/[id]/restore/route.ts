@@ -62,22 +62,31 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const t = snap.task;
   // 旧状态映射到当前状态集（v8 前快照可能带 待确认审核/待办事项）
   const status = t.status === '待确认审核' ? '已完成' : t.status === '待办事项' ? '待启动' : t.status;
-  const r = db
-    .prepare(
-      `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, created_at, completed_at, priority)
-       VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
-    )
-    .run(t.name, projectId, status, t.deadline, t.planned_date, t.is_today ? 1 : 0, t.created_at, t.completed_at, isPriority(t.priority) ? t.priority : null);
-  const taskId = Number(r.lastInsertRowid);
-
-  const insertLog = db.prepare(
-    'INSERT INTO logs (task_id, raw_text, parsed, duration_hours, blocker, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  );
-  for (const l of snap.logs) insertLog.run(taskId, l.raw_text, l.parsed, l.duration_hours, l.blocker, l.created_at);
-
-  const insertDel = db.prepare('INSERT INTO deliverables (task_id, name, link, created_at) VALUES (?, ?, ?, ?)');
-  for (const d of snap.deliverables) insertDel.run(taskId, d.name, d.link, d.created_at);
-
-  db.prepare('DELETE FROM unclaimed WHERE id = ?').run(params.id);
+  const taskId = db.transaction(() => {
+    const r = db
+      .prepare(
+        `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today, created_at, completed_at, priority)
+         VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
+      )
+      .run(t.name, projectId, status, t.deadline, t.planned_date, t.is_today ? 1 : 0, t.created_at, t.completed_at, isPriority(t.priority) ? t.priority : null);
+    const id = Number(r.lastInsertRowid);
+    // 审查修复 M4 缓解：被拍平的子任务恢复成顶层任务后，planned_date 在父级是僵尸字段（全系统口径父级只看 deadline），
+    // 归位为同名子任务承接，否则任务从周视图消失
+    if (t.planned_date && !t.deadline) {
+      db.prepare(
+        `INSERT INTO tasks (name, project_id, status, deadline, planned_date, is_plan_item, parent_task_id, is_today)
+         VALUES (?, ?, '待启动', NULL, ?, 0, ?, 0)`,
+      ).run(t.name, projectId, t.planned_date, id);
+      db.prepare('UPDATE tasks SET planned_date = NULL WHERE id = ?').run(id);
+    }
+    const insertLog = db.prepare(
+      'INSERT INTO logs (task_id, raw_text, parsed, duration_hours, blocker, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    );
+    for (const l of snap.logs) insertLog.run(id, l.raw_text, l.parsed, l.duration_hours, l.blocker, l.created_at);
+    const insertDel = db.prepare('INSERT INTO deliverables (task_id, name, link, created_at) VALUES (?, ?, ?, ?)');
+    for (const d of snap.deliverables) insertDel.run(id, d.name, d.link, d.created_at);
+    db.prepare('DELETE FROM unclaimed WHERE id = ?').run(params.id);
+    return id;
+  })();
   return NextResponse.json({ ok: true, task_id: taskId });
 }

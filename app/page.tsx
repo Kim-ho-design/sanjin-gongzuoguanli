@@ -11,6 +11,8 @@ import QuickAdd from '@/components/QuickAdd';
 import ConfirmCard from '@/components/ConfirmCard';
 import TaskDetail from '@/components/TaskDetail';
 import UnclaimedPanel from '@/components/UnclaimedPanel';
+import NotesPanel from '@/components/NotesPanel';
+import LlmStatusDot from '@/components/LlmStatusDot';
 import { AvatarLogo } from '@/components/Pixel';
 import { todayStr, splitByProgress } from '@/lib/utils';
 
@@ -30,6 +32,7 @@ export default function HomePage() {
   const [pendingParse, setPendingParse] = useState<{ rawText: string; parsed: ParseResult } | null>(null);
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
   const [showDrift, setShowDrift] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [toast, setToast] = useState('');
   const [addingProject, setAddingProject] = useState(false);
   const [newProjName, setNewProjName] = useState('');
@@ -71,10 +74,9 @@ export default function HomePage() {
     load();
   }
 
-  // 周视图拖拽：父任务改 deadline，子任务改 planned_date（乐观更新，失败回滚+提示）
+  // 周视图拖拽：父任务改 deadline，子任务改 planned_date（乐观更新，失败重取+提示）
   async function moveTaskDate(task: Task, date: string | null) {
     const isSub = task.parent_task_id !== null;
-    const prev = data; // 失败回滚用
     setData((d) =>
       d
         ? {
@@ -95,18 +97,18 @@ export default function HomePage() {
         throw new Error((d as { error?: string }).error || '保存失败');
       }
     } catch (e) {
-      setData(prev); // 回滚乐观更新
-      showToast(`日期更新失败：${e instanceof Error ? e.message : '网络错误'}，已回滚`);
+      // 审查修复 M3：失败不回滚旧快照（PATCH 飞行期间可能已发生其他变更，回滚会抹掉新数据），直接重取
+      load();
+      showToast(`日期更新失败：${e instanceof Error ? e.message : '网络错误'}`);
       return;
     }
     load();
   }
 
-  // 卡片 ✓ 快速完成：已完成 ↔ 待启动（乐观更新，失败回滚+提示）
+  // 卡片 ✓ 快速完成：已完成 ↔ 待启动（乐观更新，失败重取+提示）
   async function toggleComplete(task: Task) {
     const next = task.status === '已完成' ? '待启动' : '已完成';
     const isSub = task.parent_task_id !== null;
-    const prev = data; // 失败回滚用
     setData((d) =>
       d
         ? {
@@ -127,8 +129,8 @@ export default function HomePage() {
         throw new Error((d as { error?: string }).error || '保存失败');
       }
     } catch (e) {
-      setData(prev); // 回滚乐观更新
-      showToast(`状态更新失败：${e instanceof Error ? e.message : '网络错误'}，已回滚`);
+      load();
+      showToast(`状态更新失败：${e instanceof Error ? e.message : '网络错误'}`);
       return;
     }
     load(); // 拉取最新统计（完成率/进行中数即时重算）
@@ -161,7 +163,11 @@ export default function HomePage() {
       )
     )
       return;
-    await fetch(`/api/projects/${p.id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/projects/${p.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      showToast('项目删除失败，请重试');
+      return;
+    }
     if (filterProject === p.id) setFilterProject(0);
     showToast(`项目「${p.name}」已删除，${count} 个任务已进入待认领区`);
     load();
@@ -181,9 +187,15 @@ export default function HomePage() {
         <span className="text-[9px] font-mono text-ink-faint tracking-[0.12em] hidden lg:inline">
           PLAN · DO · LOG · REVIEW
         </span>
+        <button
+          onClick={() => setShowNotes(true)}
+          className="ml-auto text-xs rounded-lg px-3 py-2 bg-kimi-500 text-white hover:bg-kimi-600 transition-colors shadow-btn font-medium"
+        >
+          ✎ 随手记
+        </button>
         <Link
           href="/calendar"
-          className="ml-auto text-xs rounded-lg px-3 py-2 hover:bg-kimi-50 hover:text-kimi-600 transition-colors"
+          className="text-xs rounded-lg px-3 py-2 hover:bg-kimi-50 hover:text-kimi-600 transition-colors"
         >
           月视图
         </Link>
@@ -193,6 +205,7 @@ export default function HomePage() {
         >
           周报 ↗
         </Link>
+        <LlmStatusDot />
       </header>
 
       <div className="px-8 max-md:px-4 py-6 max-md:py-4 pb-24 md:pb-6 flex flex-col gap-5 flex-1 max-w-[1600px] w-full mx-auto">
@@ -341,8 +354,10 @@ export default function HomePage() {
           projects={data.projects}
           onClose={() => setShowDrift(false)}
           onChanged={load}
+          onError={showToast}
         />
       )}
+      {showNotes && <NotesPanel onClose={() => setShowNotes(false)} onToast={showToast} />}
 
       {/* Toast */}
       {toast && (

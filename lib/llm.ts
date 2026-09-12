@@ -2,6 +2,7 @@ import { isPriority } from './priority';
 // DeepSeek 调用 + 输出 schema 校验（需求文档 4.1，锁死）
 import type { ParseResult, ParseIntent } from './types';
 import { TASK_STATUSES } from './types';
+import { isValidDateStr } from './utils';
 
 const API_URL = 'https://api.deepseek.com/chat/completions';
 // v11：deepseek-chat 已被平台下线（400 报错提示可用型号），默认换 deepseek-v4-flash；
@@ -141,7 +142,7 @@ export function validateParseResult(raw: unknown): ParseResult {
         name: typeof t?.name === 'string' ? t.name : '',
         matched_existing: t?.matched_existing === true,
         status: TASK_STATUSES.includes(t?.status as never) ? (t.status as string) : '',
-        deadline: typeof t?.deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.deadline) ? t.deadline : null,
+        deadline: typeof t?.deadline === 'string' && isValidDateStr(t.deadline) ? t.deadline : null,
         parent_task_name: typeof t?.parent_task_name === 'string' ? t.parent_task_name : null,
         subtasks: Array.isArray(t?.subtasks)
           ? (t.subtasks as Record<string, unknown>[])
@@ -149,7 +150,7 @@ export function validateParseResult(raw: unknown): ParseResult {
                 ...(s?.priority !== undefined && isPriority(s.priority) ? { priority: s.priority } : {}),
                 name: typeof s?.name === 'string' ? s.name : '',
                 planned_date:
-                  typeof s?.planned_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.planned_date)
+                  typeof s?.planned_date === 'string' && isValidDateStr(s.planned_date)
                     ? s.planned_date
                     : null,
               }))
@@ -173,7 +174,7 @@ export function validateParseResult(raw: unknown): ParseResult {
     tasks,
     log: {
       content: typeof log.content === 'string' ? log.content : '',
-      date: typeof log.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(log.date) ? log.date : null,
+      date: typeof log.date === 'string' && isValidDateStr(log.date) ? log.date : null,
     },
     needs_confirmation: o.needs_confirmation === true,
     clarify_question: typeof o.clarify_question === 'string' ? o.clarify_question : '',

@@ -5,6 +5,7 @@ import { getDb, nextColor } from './db';
 import { nowStr } from './utils';
 import { TASK_STATUSES } from './types';
 import type { ParseResult, ParsedTask, Task } from './types';
+import { cascadeCompleteChildren, restoreCascadeChildren } from './task-status';
 
 export interface ApplySummary {
   actions: string[];
@@ -16,14 +17,15 @@ function norm(s: string): string {
   return s.replace(/\s+/g, '').toLowerCase();
 }
 
-/** 名称匹配现有任务：先精确（归一化），再互相包含；限定未归档任务 */
-export function matchTask(name: string): Task | null {
+/** 名称匹配现有任务：先精确（归一化），再互相包含。默认限定未完结任务；
+ *  includeCompleted=true 时含已完成（供 update_task「重新打开」匹配用，M1 配套） */
+export function matchTask(name: string, includeCompleted = false): Task | null {
   const db = getDb();
   const all = db
     .prepare(
       `SELECT t.*, p.name AS project_name FROM tasks t
        JOIN projects p ON p.id = t.project_id
-       WHERE t.status != '已完成'`,
+       ${includeCompleted ? '' : "WHERE t.status != '已完成'"}`,
     )
     .all() as Task[];
   const target = norm(name);
@@ -76,7 +78,7 @@ function createSubtasks(pt: ParsedTask, parentId: number, projectId: number) {
  * @param projectChoice 用户在反问环节选择的项目处理方式：
  *   { mode: 'existing', project_id } | { mode: 'new', name } | null（无需反问/维持解析结果）
  */
-export function applyParseResult(
+function applyParseResultImpl(
   rawText: string,
   parsed: ParseResult,
   projectChoice?: { mode: 'existing'; project_id: number } | { mode: 'new'; name: string } | null,
@@ -93,6 +95,15 @@ export function applyParseResult(
   const parsedJson = JSON.stringify(parsed);
   // 跨日期补记：log.date 存在时，日志和完成时间都记到那一天（时间部分统一 18:00）
   const logAt = parsed.log.date ? `${parsed.log.date} 18:00:00` : null;
+  // 待认领区只进一条（整句原话 + 完整解析），多处触发去重
+  let unclaimedInserted = false;
+  const insertUnclaimed = (action: string) => {
+    if (unclaimedInserted) return;
+    unclaimedInserted = true;
+    const r = db.prepare('INSERT INTO unclaimed (raw_text, parsed) VALUES (?, ?)').run(rawText, parsedJson);
+    summary.unclaimed_id = Number(r.lastInsertRowid);
+    summary.actions.push(action);
+  };
 
   // 1. 解析项目归属
   let projectId: number | null = null;
@@ -133,10 +144,16 @@ export function applyParseResult(
       if (!ok) taskProjectId = projectId; // 非法 id 回退整体项目，防 FK 报错
     }
     if (pt.matched_existing) {
-      const existing = matchTask(pt.name);
+      // 审查修复 M1 配套：update_task 的「重新打开」目标常是已完成任务，默认匹配排除已完成，这里补一次全量匹配
+      const existing = matchTask(pt.name) ?? (parsed.intent === 'update_task' ? matchTask(pt.name, true) : null);
       if (existing) {
         if (pt.priority !== undefined) {
           db.prepare('UPDATE tasks SET priority = ? WHERE id = ?').run(pt.priority, existing.id);
+        }
+        // 审查修复 L2：matched_existing 也可能带拆分语义，子任务不能静默丢
+        if (pt.subtasks.length) {
+          createSubtasks(pt, existing.id, existing.project_id);
+          summary.actions.push(`子任务 ×${pt.subtasks.filter((s) => s.name.trim()).length} 已并入既有任务`);
         }
         resolvedTaskIds.push({ pt, id: existing.id, existed: true });
         if (!createdByName.has(norm(pt.name))) createdByName.set(norm(pt.name), existing.id);
@@ -146,13 +163,9 @@ export function applyParseResult(
       // 声称匹配但库里没有 → 当成新任务（落库时如实记录，不编造）
     }
     if (taskProjectId === null) {
-      // 挂不上项目：整条进待认领区（需求文档第 6 节）
-      const r = db
-        .prepare('INSERT INTO unclaimed (raw_text, parsed) VALUES (?, ?)')
-        .run(rawText, parsedJson);
-      summary.unclaimed_id = Number(r.lastInsertRowid);
-      summary.actions.push('无法确定项目归属，已放入待认领区');
-      return summary;
+      // 挂不上项目：整句进待认领区（需求文档第 6 节）；继续处理剩余任务，不提前返回（审查修复 L1）
+      insertUnclaimed('无法确定项目归属，已放入待认领区');
+      continue;
     }
     const id = createTask(pt, taskProjectId, null, logAt);
     if (pt.subtasks.length) {
@@ -188,9 +201,19 @@ export function applyParseResult(
         continue;
       }
       const target = TASK_STATUSES.includes(pt.status as never) && pt.status ? pt.status : '已完成';
-      db.prepare(
-        `UPDATE tasks SET status = ?, completed_at = CASE WHEN ? = '已完成' THEN ? ELSE completed_at END WHERE id = ?`,
-      ).run(target, target, logAt ?? nowStr(), id);
+      // 审查修复 M1：与 PATCH 语义对齐——重新打开清 completed_at、父任务完成/重开级联子任务
+      const cur = db.prepare('SELECT status, parent_task_id FROM tasks WHERE id = ?').get(id) as
+        | { status: string; parent_task_id: number | null }
+        | undefined;
+      const at = logAt ?? nowStr();
+      if (target === '已完成') {
+        db.prepare(`UPDATE tasks SET status = '已完成', completed_at = ? WHERE id = ?`).run(at, id);
+        if (cur?.parent_task_id === null) cascadeCompleteChildren(id, at);
+      } else {
+        const clearCompleted = cur?.status === '已完成';
+        db.prepare(`UPDATE tasks SET status = ?, completed_at = ${clearCompleted ? 'NULL' : 'completed_at'} WHERE id = ?`).run(target, id);
+        if (clearCompleted && cur?.parent_task_id === null) restoreCascadeChildren(id);
+      }
       summary.actions.push(`任务状态 → ${target}`);
     }
   }
@@ -208,22 +231,26 @@ export function applyParseResult(
       db.prepare(`UPDATE tasks SET status = '进行中' WHERE id = ? AND status = '待启动'`).run(firstTask.id);
     } else if (parsed.intent === 'log_progress') {
       // 有日志内容但挂不上任务 → 待认领区
-      const r = db
-        .prepare('INSERT INTO unclaimed (raw_text, parsed) VALUES (?, ?)')
-        .run(rawText, parsedJson);
-      summary.unclaimed_id = Number(r.lastInsertRowid);
-      summary.actions.push('这句话暂时挂不上任务，已放入待认领区');
-      return summary;
+      insertUnclaimed('这句话暂时挂不上任务，已放入待认领区');
     }
   }
 
   if (parsed.intent === 'unclear' || (resolvedTaskIds.length === 0 && parsed.intent !== 'weekly_review')) {
-    const r = db
-      .prepare('INSERT INTO unclaimed (raw_text, parsed) VALUES (?, ?)')
-      .run(rawText, parsedJson);
-    summary.unclaimed_id = Number(r.lastInsertRowid);
-    summary.actions.push('未识别出明确意图，已放入待认领区');
+    insertUnclaimed('未识别出明确意图，已放入待认领区');
   }
 
   return summary;
+}
+
+/**
+ * 应用解析结果（事务版）：建项目/建任务/记日志等多步写原子提交，
+ * 中途失败整体回滚，不留半提交数据（审查修复 M2）。
+ */
+export function applyParseResult(
+  rawText: string,
+  parsed: ParseResult,
+  projectChoice?: { mode: 'existing'; project_id: number } | { mode: 'new'; name: string } | null,
+  taskProjects?: ({ mode: 'existing'; project_id: number } | null)[],
+): ApplySummary {
+  return getDb().transaction(applyParseResultImpl)(rawText, parsed, projectChoice, taskProjects);
 }
