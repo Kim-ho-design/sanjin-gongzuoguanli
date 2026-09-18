@@ -23,9 +23,10 @@ export class LlmError extends Error {}
 // v16：LLM 调用 45s 超时兜底——超时返回干净的 JSON 错误，不再裸奔到 nginx 60s 504 HTML 页
 const LLM_TIMEOUT_MS = 45_000;
 
-/** 共享的 DeepSeek 调用：json=true 时强制 JSON 输出；extra 合并进请求体（如 thinking 配置） */
+/** 共享的 DeepSeek 调用：json=true 时强制 JSON 输出；extra 合并进请求体（如 thinking 配置）。
+ *  messages 放宽到 assistant 角色以支持 v20 复盘对话的多轮历史直传 */
 async function callDeepSeek(
-  messages: { role: 'system' | 'user'; content: string }[],
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
   json: boolean,
   extra: Record<string, unknown> = {},
 ): Promise<string> {
@@ -110,6 +111,15 @@ export async function callReport(systemPrompt: string, userPayload: string): Pro
     false,
   );
   if (!content.trim()) throw new LlmError('LLM 返回了空周报，请重试。');
+  return content;
+}
+
+/** v20 复盘对话：多轮 messages 直传（system + 历史 + 当前），文本模式，沿用 45s 超时与错误处理 */
+export async function callChat(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+): Promise<string> {
+  const content = await callDeepSeek(messages, false);
+  if (!content.trim()) throw new LlmError('AI 返回了空回复，请重试。');
   return content;
 }
 

@@ -1,5 +1,16 @@
 # AGENTS.md — AI 协作记忆文件
 
+## 当前迭代（2026-09-18，v20 对话式复盘，分支 feature/notes-chat-review，未部署）
+
+- **随手记升级对话式复盘**：原「✦ AI 总结本月」一次性格式化月报 → **多轮复盘对话**。顶栏「✎ 随手记」浮窗内第三个视图「💬 复盘对话」（WORK REVIEW）：会话列表（新建/切换/删除，移动端横向 chips、桌面左侧栏）+ 消息气泡流（用户右/助手左，助手回复 `report-md` 同款 markdown 渲染）+ 底部输入（Enter 发送、Shift+Enter 换行、禁重复提交）。随手记浮窗底部两个入口：「💬 复盘对话」= 自由对话（可自己限定任意时间范围）；「✦ AI 复盘上月」= 切 chat 视图 + 自动新建会话发问「帮我复盘 YYYY 年 M 月做过的事…」（自动取上一个完整月份；当月复盘通过自由对话实现）。
+- **新表**（lib/db.ts SCHEMA_SQL，幂等）：`chat_sessions(id/title/created_at/updated_at)` + `chat_messages(id/session_id/role user|assistant/content/created_at)` + 索引 `idx_chat_messages_session`；外键 ON（db.ts 开 foreign_keys），删会话手动级联删消息。
+- **`lib/chat.ts`**（v20 核心）：`buildWorkSnapshot()` 组装注入快照（项目全量 / 未完成任务 ≤100 / 近 90 天已完成 / 近 90 天 logs / 近 90 天随手记，≤8000 字截断）；`chat(message, sessionId?)` 无 sessionId 新建会话（title=首条前 20 字）→ 存用户消息 → 取最近 **20** 条历史 → messages=[system(复盘助手纪律+快照), ...history] → `callChat`（llm.ts 新增包装，文本模式沿用 45s 超时）→ 存回复 → 返回 `{reply, session_id}`；**LLM 失败回滚**（删刚写入的用户消息，新会话连会话一起删）抛 LlmError。另有 `listSessions()`（≤20，updated_at 倒序）/`getSessionMessages()`（null=不存在）/`deleteSession()`。
+- **新 API**（风格对齐 notes 路由）：`POST /api/notes/chat`（message 必填 ≤2000 字，LLM 失败 502，会话不存在 404）、`GET /api/notes/chat/sessions`、`GET+DELETE /api/notes/chat/sessions/[id]`。
+- **删除**：`/api/notes/summary` 路由与 `lib/notes.ts` 月报代码（buildNotesPrompt/renderNotesTemplate/generateNotesSummary）已删（NotesPanel 不再引用）；旧 `callDeepSeek` messages 类型放宽到 assistant（纯类型扩展），新增 `callChat`。
+- 测试：111 全绿（新增 chat.test.ts 13 条 + chat-api.test.ts 8 条，callChat 打桩）+ lint/build 零错误。
+- deploy.sh 第 4 步：解压前服务器自动备份 `data/work-os.db` → `data/backups/work-os-<时间戳>.db`，只留最近 10 份。
+- ⚠️ dev 与 build 共用 .next：**严禁 dev 运行中跑 build**（上轮踩过，重启 dev 才恢复）。
+
 ## 当前迭代（2026-09-12，v19 已上线）
 
 - 分支 `feature/notes-llm-status`，三件套：随手记 + DeepSeek 余额状态灯 + 全量对抗性审查修复。**已部署 https://work.sanjin.art**（GitHub main 91f7c73，服务器 systemd workos 重启正常）。
@@ -9,7 +20,6 @@
 - 已知遗留：M4 完整层级重建（快照未存父子关系）、L3 登录/parse 无限速（建议 nginx limit_req）、L4 时序安全比较（Edge Runtime 取舍）。
 - 验收：95 测试全绿 + lint/build 零错误 + Playwright 冒烟（`scripts/smoke-v19.cjs`，截图在 `../../反馈截图/v19-smoke/`）；本地预览 http://127.0.0.1:5190（WORK_OS_DATA_DIR 数据副本）。
 - 种子数据（2026-09-11，用户口述）：进度把握不佳道具没提前购买到位 / 一站式一条咨询超时。**已写入线上库**（2026-09-12，经 Bearer API，id 1/2）。
-- ⚠️ dev 与 build 共用 .next：**严禁 dev 运行中跑 build**（本轮踩过，重启 dev 才恢复）。
 
 ## 当前视觉迭代（2026-09-05）
 
@@ -50,7 +60,7 @@ app/api/         board / tasks(+[id]，GET 过滤列表 v15) / parse(+confirm) /
                  calendar(+day) / report(format=data 原始聚合 v15) / unclaimed([id]+claim+restore) / auth
 components/      TopBar(五格数据条+浮层；移动端两行) WeekView(周视图+拖拽+拖欠条+未排期；移动端单列纵排+触屏禁拖拽)
                  TaskDetail(详情抽屉；移动端底部弹出 bottom sheet) InputBox(移动端吸底) ConfirmCard UnclaimedPanel Pixel
-lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply report auth
+lib/             types db(SCHEMA_SQL+迁移) utils(纯函数) prompt llm apply report auth notes chat(v20 复盘对话+工作快照)
 ```
 
 ## 核心业务口径（改代码前必读）

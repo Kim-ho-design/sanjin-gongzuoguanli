@@ -22,7 +22,27 @@ export function shiftMonth(month: string, delta: number): string {
   return monthStr(d);
 }
 
-/** 随手记浮窗：记（日期+一句话）、看列表、AI 总结本月 */
+interface Session {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ChatMsg {
+  id: number;
+  session_id: number;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** 「✦ AI 复盘上月」自动发送的首条消息（复盘对象永远是上一个完整月份，当月复盘走自由对话） */
+function reviewPrompt(): string {
+  const [y, m] = shiftMonth(monthStr(new Date()), -1).split('-');
+  return `帮我复盘 ${y} 年 ${Number(m)} 月做过的事：归纳主题、点明反复出现的模式、给 2~3 条可执行建议`;
+}
+
+/** 随手记浮窗：记（日期+一句话）、按月翻看、AI 复盘对话（v20 起对话式） */
 export default function NotesPanel({
   onClose,
   onToast,
@@ -36,12 +56,18 @@ export default function NotesPanel({
   const [text, setText] = useState('');
   const [date, setDate] = useState(todayStr());
   const [adding, setAdding] = useState(false);
-  const [view, setView] = useState<'list' | 'summary'>('list');
-  const [summary, setSummary] = useState('');
-  const [summaryFallback, setSummaryFallback] = useState(false);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<'list' | 'chat'>('list');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ---- 复盘对话状态 ----
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSession, setActiveSession] = useState<number | null>(null);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [msgsLoading, setMsgsLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async (m: string) => {
     setListLoading(true);
@@ -57,6 +83,34 @@ export default function NotesPanel({
     }
   }, [onToast]);
 
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notes/chat/sessions', { cache: 'no-store' });
+      if (!res.ok) throw new Error();
+      const d = (await res.json()) as { sessions: Session[] };
+      setSessions(d.sessions);
+    } catch {
+      onToast('会话列表加载失败，请重试');
+    }
+  }, [onToast]);
+
+  const loadMessages = useCallback(
+    async (sid: number) => {
+      setMsgsLoading(true);
+      try {
+        const res = await fetch(`/api/notes/chat/sessions/${sid}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error();
+        const d = (await res.json()) as { messages: ChatMsg[] };
+        setMessages(d.messages);
+      } catch {
+        onToast('消息加载失败，请重试');
+      } finally {
+        setMsgsLoading(false);
+      }
+    },
+    [onToast],
+  );
+
   useEffect(() => {
     load(month);
   }, [month, load]);
@@ -64,6 +118,16 @@ export default function NotesPanel({
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // 进入对话视图时拉会话列表
+  useEffect(() => {
+    if (view === 'chat') loadSessions();
+  }, [view, loadSessions]);
+
+  // 新消息自动滚到底部
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, sending, view]);
 
   async function add() {
     const content = text.trim();
@@ -100,43 +164,87 @@ export default function NotesPanel({
     }
   }
 
-  async function summarize() {
-    setSummaryLoading(true);
-    setSummary('');
-    setView('summary');
+  // ---- 复盘对话 ----
+
+  /** 本地乐观消息的负数 id，避免与库 id 冲突 */
+  const localIdRef = useRef(0);
+
+  async function send(content: string, sessionId: number | null) {
+    const msg = content.trim();
+    if (!msg || sending) return;
+    setSending(true);
+    setMessages((ms) => [
+      ...ms,
+      { id: --localIdRef.current, session_id: sessionId ?? 0, role: 'user', content: msg },
+    ]);
     try {
-      const res = await fetch(`/api/notes/summary?month=${month}`, { cache: 'no-store' });
-      const d = (await res.json()) as { error?: string; markdown?: string; fallback?: boolean };
-      if (!res.ok || !d.markdown) throw new Error(d.error || '生成失败');
-      setSummary(d.markdown);
-      setSummaryFallback(d.fallback === true);
+      const res = await fetch('/api/notes/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, ...(sessionId ? { session_id: sessionId } : {}) }),
+      });
+      const d = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        reply?: string;
+        session_id?: number;
+      };
+      if (!res.ok || !d.reply || !d.session_id) throw new Error(d.error || '发送失败');
+      setActiveSession(d.session_id);
+      setMessages((ms) => [
+        ...ms,
+        { id: --localIdRef.current, session_id: d.session_id as number, role: 'assistant', content: d.reply as string },
+      ]);
+      loadSessions(); // 新会话拿到标题后刷新列表
     } catch (e) {
-      setView('list');
-      onToast(e instanceof Error ? `AI 总结失败：${e.message}` : 'AI 总结失败，请重试');
+      onToast(e instanceof Error ? `发送失败：${e.message}` : '发送失败，请重试');
+      // 失败回滚乐观气泡：有会话则重取，无会话（新建失败）则清空
+      if (sessionId) loadMessages(sessionId);
+      else setMessages([]);
     } finally {
-      setSummaryLoading(false);
+      setSending(false);
     }
   }
 
-  async function copy() {
-    try {
-      if (window.isSecureContext && navigator.clipboard) {
-        await navigator.clipboard.writeText(summary);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = summary;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      onToast('复制失败，请手动全选文本复制');
+  function sendCurrent() {
+    const content = chatInput;
+    setChatInput('');
+    send(content, activeSession);
+  }
+
+  /** ✦ AI 复盘上月：切到对话视图，自动新建会话发问 */
+  function aiReview() {
+    setView('chat');
+    setActiveSession(null);
+    setMessages([]);
+    send(reviewPrompt(), null);
+  }
+
+  function newChat() {
+    setActiveSession(null);
+    setMessages([]);
+    setChatInput('');
+    chatInputRef.current?.focus();
+  }
+
+  function selectSession(sid: number) {
+    if (sid === activeSession) return;
+    setActiveSession(sid);
+    setMessages([]);
+    loadMessages(sid);
+  }
+
+  async function removeSession(sid: number) {
+    const prev = sessions;
+    setSessions((ss) => ss.filter((s) => s.id !== sid));
+    const res = await fetch(`/api/notes/chat/sessions/${sid}`, { method: 'DELETE' });
+    if (!res.ok) {
+      setSessions(prev);
+      onToast('删除会话失败，请重试');
+      return;
+    }
+    if (activeSession === sid) {
+      setActiveSession(null);
+      setMessages([]);
     }
   }
 
@@ -145,7 +253,7 @@ export default function NotesPanel({
       {/* 浮窗：移动端贴底、桌面居中 */}
       <div className="absolute inset-0 flex items-end md:items-center justify-center p-3 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-lg bg-[#FAF9F6] border border-line rounded-t-3xl md:rounded-3xl shadow-pop pop-enter flex flex-col max-h-[86dvh] md:max-h-[80vh] overflow-hidden"
+          className="pointer-events-auto w-full max-w-lg bg-[#FAF9F6] border border-line rounded-t-3xl md:rounded-3xl shadow-pop pop-enter flex flex-col max-h-[86dvh] md:max-h-[80vh] overflow-hidden md:max-w-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 移动端抓手 */}
@@ -154,7 +262,9 @@ export default function NotesPanel({
           {/* 标题行 */}
           <div className="flex items-center gap-2 px-4 md:px-5 pt-3 md:pt-4 pb-3">
             <h2 className="text-base font-bold tracking-tight">随手记</h2>
-            <span className="text-[10px] font-mono text-ink-faint tracking-wider">WORK NOTES</span>
+            <span className="text-[10px] font-mono text-ink-faint tracking-wider">
+              {view === 'chat' ? 'WORK REVIEW' : 'WORK NOTES'}
+            </span>
             {view === 'list' && (
               <div className="ml-auto flex items-center gap-1">
                 <button
@@ -174,7 +284,7 @@ export default function NotesPanel({
                 </button>
               </div>
             )}
-            {view === 'summary' && (
+            {view === 'chat' && (
               <button
                 onClick={() => setView('list')}
                 className="ml-auto text-xs text-ink-soft hover:text-kimi-600 border border-line rounded-full px-3 py-1 transition-colors"
@@ -187,7 +297,120 @@ export default function NotesPanel({
             </button>
           </div>
 
-          {view === 'list' ? (
+          {view === 'chat' ? (
+            <div className="flex-1 flex flex-col md:flex-row min-h-[40vh] overflow-hidden">
+              {/* 会话列表：移动端顶部横向 chips，桌面左侧栏 */}
+              <div className="shrink-0 border-b md:border-b-0 md:border-r border-line bg-white/60">
+                <div className="flex items-center gap-1 px-3 pt-2 md:pt-3">
+                  <button
+                    onClick={newChat}
+                    className="shrink-0 text-xs text-kimi-600 border border-kimi-200 hover:bg-kimi-50 rounded-full px-2.5 py-1 transition-colors"
+                  >
+                    ＋ 新对话
+                  </button>
+                </div>
+                <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto px-3 py-2 max-w-full md:w-44 md:max-h-[52vh]">
+                  {sessions.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => selectSession(s.id)}
+                      className={`group flex items-center gap-1 shrink-0 md:shrink rounded-lg px-2.5 py-1.5 cursor-pointer text-xs border transition-colors ${
+                        s.id === activeSession
+                          ? 'bg-kimi-50 border-kimi-200 text-kimi-700'
+                          : 'bg-white border-line text-ink-soft hover:border-kimi-300'
+                      }`}
+                    >
+                      <span className="truncate max-w-[10em] md:max-w-none">{s.title || '（未命名）'}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSession(s.id);
+                        }}
+                        title="删除会话"
+                        className="shrink-0 w-4 h-4 rounded text-ink-faint hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {sessions.length === 0 && (
+                    <p className="text-[10px] text-ink-faint font-mono tracking-widest px-1 py-1">NO SESSIONS</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 消息区 + 输入 */}
+              <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex-1 overflow-y-auto px-4 md:px-5 py-3 flex flex-col gap-2.5">
+                  {msgsLoading ? (
+                    <p className="text-xs text-ink-faint text-center py-10 font-mono tracking-widest">LOADING…</p>
+                  ) : messages.length === 0 && !sending ? (
+                    <div className="m-auto text-center max-w-[26em]">
+                      <p className="text-[13px] text-ink-soft leading-relaxed">
+                        向 AI 复盘你的工作。它会读到真实的项目、任务、日志和随手记数据，可以归纳主题、发现反复出现的模式、给可执行建议。
+                      </p>
+                      <p className="text-[11px] text-ink-faint mt-2 font-mono">
+                        例：本月我完成了哪些事？哪些问题反复出现？
+                      </p>
+                    </div>
+                  ) : (
+                    messages.map((m) =>
+                      m.role === 'user' ? (
+                        <div key={m.id} className="flex justify-end">
+                          <div className="max-w-[85%] bg-kimi-500 text-white rounded-2xl rounded-br-md px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words shadow-btn">
+                            {m.content}
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={m.id} className="flex justify-start">
+                          <div className="max-w-[92%] bg-white border border-line rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] leading-relaxed text-ink break-words">
+                            <div className="report-md">
+                              <ReactMarkdown>{m.content}</ReactMarkdown>
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                    )
+                  )}
+                  {sending && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-line rounded-2xl rounded-bl-md px-3.5 py-2.5">
+                        <PixelLoader />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* 输入区 */}
+                <div className="border-t border-line bg-white/70 px-4 md:px-5 py-3 flex items-end gap-2">
+                  <textarea
+                    ref={chatInputRef}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendCurrent();
+                      }
+                      if (e.key === 'Escape') onClose();
+                    }}
+                    placeholder="问问你的工作：Enter 发送，Shift+Enter 换行"
+                    maxLength={2000}
+                    rows={2}
+                    className="input-dark flex-1 text-[13px] px-3 py-2 min-w-0 resize-none leading-relaxed"
+                  />
+                  <button
+                    onClick={sendCurrent}
+                    disabled={!chatInput.trim() || sending}
+                    className="shrink-0 text-[13px] bg-kimi-500 hover:bg-kimi-600 text-white rounded-lg px-4 py-2 font-medium transition-colors disabled:opacity-40 shadow-btn"
+                  >
+                    {sending ? '…' : '发送'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
             <>
               {/* 列表区 */}
               <div className="flex-1 overflow-y-auto px-4 md:px-5 pb-3 min-h-[30vh]">
@@ -221,7 +444,7 @@ export default function NotesPanel({
                 )}
               </div>
 
-              {/* 底部操作区：输入 + AI 总结 */}
+              {/* 底部操作区：输入 + AI 复盘 */}
               <div className="border-t border-line bg-white/70 px-4 md:px-5 py-3 flex flex-col gap-2.5">
                 <div className="flex gap-2">
                   <input
@@ -252,45 +475,24 @@ export default function NotesPanel({
                     {adding ? '…' : '记下'}
                   </button>
                 </div>
-                <button
-                  onClick={summarize}
-                  disabled={summaryLoading}
-                  className="w-full text-xs border border-kimi-200 text-kimi-600 hover:bg-kimi-50 rounded-lg py-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {summaryLoading && <PixelLoader />}
-                  {summaryLoading ? 'AI 总结中，通常几秒钟…' : `✦ AI 总结 ${month} 月`}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setView('chat')}
+                    className="flex-1 text-xs border border-line text-ink-soft hover:text-kimi-600 hover:border-kimi-200 hover:bg-kimi-50 rounded-lg py-2 transition-colors"
+                  >
+                    💬 复盘对话
+                  </button>
+                  <button
+                    onClick={aiReview}
+                    disabled={sending}
+                    className="flex-1 text-xs border border-kimi-200 text-kimi-600 hover:bg-kimi-50 rounded-lg py-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {sending && <PixelLoader />}
+                    {sending ? 'AI 复盘中，通常几秒钟…' : '✦ AI 复盘上月'}
+                  </button>
+                </div>
               </div>
             </>
-          ) : (
-            /* AI 总结视图 */
-            <div className="flex-1 overflow-y-auto px-4 md:px-5 pb-4 min-h-[30vh]">
-              {summaryLoading ? (
-                <div className="flex flex-col items-center gap-3 py-14">
-                  <PixelLoader />
-                  <p className="text-xs text-ink-faint font-mono tracking-widest">AI 正在归纳本月记录…</p>
-                </div>
-              ) : (
-                <>
-                  {summaryFallback && (
-                    <p className="text-xs text-bean-orange border border-bean-orange/40 rounded-lg px-3 py-2 mb-3">
-                      ⚠ AI 总结失败，以下为模板兜底版（仅按周平铺，未归纳）。请检查 DeepSeek 配置后重新生成。
-                    </p>
-                  )}
-                  <div className="flex gap-2 mb-3 justify-end">
-                    <button
-                      onClick={copy}
-                      className="text-xs border border-line rounded-lg px-3 py-1.5 hover:border-kimi-400 transition-colors"
-                    >
-                      {copied ? '✓ 已复制' : '复制'}
-                    </button>
-                  </div>
-                  <div className="text-[14px] leading-relaxed text-ink report-md">
-                    <ReactMarkdown>{summary}</ReactMarkdown>
-                  </div>
-                </>
-              )}
-            </div>
           )}
         </div>
       </div>
