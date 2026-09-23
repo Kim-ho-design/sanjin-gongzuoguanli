@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weekRange, isOverdue, weekCompletion, splitByProgress, prefillTaskFromLog } from '../utils';
+import { weekRange, isOverdue, weekCompletion, splitByProgress, prefillTaskFromLog, weekPlacementDate } from '../utils';
 
 // 2026-07-20 是周一，所在自然周为 07-20 ~ 07-26
 const WED = '2026-07-22';
@@ -161,5 +161,45 @@ describe('prefillTaskFromLog', () => {
   it('超长截断到 20 字；空内容兜底名称', () => {
     expect(prefillTaskFromLog('一'.repeat(30)).name).toHaveLength(20);
     expect(prefillTaskFromLog('   ').name).toBe('补记的工作');
+  });
+});
+
+describe('weekPlacementDate', () => {
+  const t = (
+    overrides: Partial<{ deadline: string | null; planned_date: string | null; status: string; parent_task_id: number | null; completed_at: string | null }>,
+  ) => ({
+    deadline: null,
+    planned_date: null,
+    status: '待启动',
+    parent_task_id: null,
+    completed_at: null,
+    ...overrides,
+  });
+
+  it('父任务按 deadline、子任务按 planned_date（原有口径不变）', () => {
+    expect(weekPlacementDate(t({ deadline: '2026-09-25' }))).toBe('2026-09-25');
+    expect(weekPlacementDate(t({ parent_task_id: 1, planned_date: '2026-09-24' }))).toBe('2026-09-24');
+  });
+
+  it('未完成且无日期 → null（进未排期栏）', () => {
+    expect(weekPlacementDate(t({}))).toBeNull();
+    expect(weekPlacementDate(t({ status: '进行中' }))).toBeNull();
+  });
+
+  it('已完成且无排期日期 → 按完成时间归位（补记可见）', () => {
+    expect(weekPlacementDate(t({ status: '已完成', completed_at: '2026-09-22 18:00:00' }))).toBe('2026-09-22');
+    expect(
+      weekPlacementDate(t({ status: '已完成', parent_task_id: 1, completed_at: '2026-09-22 18:00:00' })),
+    ).toBe('2026-09-22');
+  });
+
+  it('已完成但有排期日期 → 仍按排期日期，不看完成时间', () => {
+    expect(
+      weekPlacementDate(t({ status: '已完成', deadline: '2026-09-25', completed_at: '2026-09-22 18:00:00' })),
+    ).toBe('2026-09-25');
+  });
+
+  it('已完成但无完成时间 → null', () => {
+    expect(weekPlacementDate(t({ status: '已完成' }))).toBeNull();
   });
 });

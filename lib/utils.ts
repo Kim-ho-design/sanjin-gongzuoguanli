@@ -101,6 +101,23 @@ export function splitByProgress<
   return { todo, doing, done };
 }
 
+/**
+ * 周视图归位日期：父任务看 deadline、子任务看 planned_date；
+ * 已完成但无排期日期（补记场景）按 completed_at 的日期归位，保证页面上可见
+ */
+export function weekPlacementDate(t: {
+  deadline: string | null;
+  planned_date: string | null;
+  status: string;
+  parent_task_id: number | null;
+  completed_at: string | null;
+}): string | null {
+  const primary = t.parent_task_id === null ? t.deadline : t.planned_date;
+  if (primary) return primary;
+  if (t.status === '已完成' && t.completed_at) return t.completed_at.slice(0, 10);
+  return null;
+}
+
 /** 补记兜底：日志有内容但任务列表为空时，生成一条可编辑的预填任务（名称取日志内容摘要） */
 export function prefillTaskFromLog(logContent: string): ParsedTask {
   const summary = logContent.replace(/\s+/g, '').slice(0, 20);

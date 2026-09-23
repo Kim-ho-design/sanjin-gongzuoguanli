@@ -1,6 +1,6 @@
 # AGENTS.md — AI 协作记忆文件
 
-## 当前迭代（2026-09-18，v20 对话式复盘，分支 feature/notes-chat-review，未部署）
+## 当前迭代（2026-09-18 开发 / 2026-09-19 已上线，v20 对话式复盘，https://work.sanjin.art）
 
 - **随手记升级对话式复盘**：原「✦ AI 总结本月」一次性格式化月报 → **多轮复盘对话**。顶栏「✎ 随手记」浮窗内第三个视图「💬 复盘对话」（WORK REVIEW）：会话列表（新建/切换/删除，移动端横向 chips、桌面左侧栏）+ 消息气泡流（用户右/助手左，助手回复 `report-md` 同款 markdown 渲染）+ 底部输入（Enter 发送、Shift+Enter 换行、禁重复提交）。随手记浮窗底部两个入口：「💬 复盘对话」= 自由对话（可自己限定任意时间范围）；「✦ AI 复盘上月」= 切 chat 视图 + 自动新建会话发问「帮我复盘 YYYY 年 M 月做过的事…」（自动取上一个完整月份；当月复盘通过自由对话实现）。
 - **新表**（lib/db.ts SCHEMA_SQL，幂等）：`chat_sessions(id/title/created_at/updated_at)` + `chat_messages(id/session_id/role user|assistant/content/created_at)` + 索引 `idx_chat_messages_session`；外键 ON（db.ts 开 foreign_keys），删会话手动级联删消息。
@@ -9,6 +9,7 @@
 - **删除**：`/api/notes/summary` 路由与 `lib/notes.ts` 月报代码（buildNotesPrompt/renderNotesTemplate/generateNotesSummary）已删（NotesPanel 不再引用）；旧 `callDeepSeek` messages 类型放宽到 assistant（纯类型扩展），新增 `callChat`。
 - 测试：111 全绿（新增 chat.test.ts 13 条 + chat-api.test.ts 8 条，callChat 打桩）+ lint/build 零错误。
 - deploy.sh 第 4 步：解压前服务器自动备份 `data/work-os.db` → `data/backups/work-os-<时间戳>.db`，只留最近 10 份。
+- **部署教训（v20 首发 502 事故）**：tar 直接覆盖解压不会删除服务器上已移除的旧文件（残留的 `/api/notes/summary` 引用已删函数导致构建失败）；deploy.sh 已改为解压到 /tmp/work-os-release 后 `rsync -a --delete`（排除 data/.env/node_modules/.next）同步，且 `npm run build` 后 `test -f .next/BUILD_ID` 通过才重启——构建失败只报错、不再拖垮线上服务。
 - ⚠️ dev 与 build 共用 .next：**严禁 dev 运行中跑 build**（上轮踩过，重启 dev 才恢复）。
 
 ## 当前迭代（2026-09-12，v19 已上线）

@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task } from '@/lib/types';
-import { weekRange, addDays, todayStr, weekdayCn, isOverdue } from '@/lib/utils';
+import { weekRange, addDays, todayStr, weekdayCn, isOverdue, weekPlacementDate } from '@/lib/utils';
 
 /** 周视图主视图：父任务按 deadline 落列、子任务按 planned_date 落列，可拖拽改日期
  *  移动端（v14 起）：七列改为单列长列表（按天纵向排列），触摸拖拽关闭，改走详情卡片操作 */
@@ -65,13 +65,15 @@ export default function WeekView({
   const matches = (t: Task) => priorityFilter === 'all' || String(priorityOf(t) ?? 0) === priorityFilter;
   const visibleTasks = tasks.filter(matches);
   const visibleSubs = subtasks.filter(matches);
-  // 按天归组：父任务按 deadline、子任务按 planned_date（排序在渲染合并单元时做）
+  // 按天归组：父任务按 deadline、子任务按 planned_date；已完成但无排期日期（补记）按完成时间归位（排序在渲染合并单元时做）
   const byDay = new Map<string, Task[]>(days.map((d) => [d, []]));
   for (const t of visibleTasks) {
-    if (t.deadline && byDay.has(t.deadline)) byDay.get(t.deadline)!.push(t);
+    const d = weekPlacementDate(t);
+    if (d && byDay.has(d)) byDay.get(d)!.push(t);
   }
   for (const s of visibleSubs) {
-    if (s.planned_date && byDay.has(s.planned_date)) byDay.get(s.planned_date)!.push(s);
+    const d = weekPlacementDate(s);
+    if (d && byDay.has(d)) byDay.get(d)!.push(s);
   }
 
   // 未排期：真正没有日期的未完结任务（父无 deadline / 子无 planned_date），与显示哪一周无关
