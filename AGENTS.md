@@ -1,6 +1,20 @@
 # AGENTS.md — AI 协作记忆文件
 
-## 当前迭代（2026-09-23，v20.1 已上线，main fc0cd8e）
+## 当前迭代（2026-10-04，v21 脚本工作台 + 全站 B 端视觉，feature/script-workbench）
+
+- **脚本工作台模块**（需求基准：`../脚本工作台-需求文档.md`）：给「一站式」抖音号（口播干货）和「徕乔」视频号（分镜种草）写脚本的完整链路——给方向→AI 出初稿→人工改→配套产出→好稿沉淀样稿→AI 风格自动迭代。产品改名「三金内容工作台」（边栏/顶栏/标题/manifest/login 全换）。
+- **新表 5 张**（SCHEMA_SQL 追加，幂等）：`scripts`（account yizhanshi|laiqiao / status 写作中|初稿|定稿|已发布 / is_sample / linked_task_id+draft/final_task_id / draft/final_date）· `script_versions`（kind ai_draft|manual）· `script_extras`（caption|tags|comments 含历史）· `script_refs`（参考链接抓取）· `prompt_profiles`（base_prompt+auto_rules+manual_notes 三区）
+- **内容 schema**：一站式 `{cover_title, positioning, framework, audience, keywords[], body, progress_nodes[], end_card}`（body=一体口播正文，`（字幕：…）（画面：…）`括注跟句后，短句竖排；progress_nodes 单独数组）；徕乔 `{cover_title, post_title, rows[{node_label, voiceover, visual, subtitle, note}]}`（四列：同期声/呈现/字幕/拍摄后期注意点）。`lib/script-content.ts`：normalizeYzContent（旧 sections→body 合并兼容）、normalizeLqRows、countSpeakable（去括注数字数）
+- **LLM provider 可切换**：`LLM_PROVIDER=deepseek|kimi`（默认 deepseek；kimi=开放平台 KIMI_API_KEY/KIMI_BASE_URL/KIMI_MODEL）。注意 Kimi Code 订阅 key 官方禁止第三方集成，不可用。新增 `callScript()`（JSON mode，110s 超时；45s 常量不动）
+- **提示词双区 + 自动迭代**：`lib/prompts.ts` buildSystemPrompt=base+auto_rules+manual_notes；样稿 is_sample 0↔1 切换后 fire-and-forget `regenAutoRules`（通读全部样稿→提炼风格规则≤800字）；`POST /api/scripts/prompts/regen` 手动触发
+- **AI 路由**：`POST /api/scripts/[id]/generate-draft`（占位标题「= 方向」被 cover_title 接管并同步看板任务名）/ `extras/generate`（caption/tags=平台搜索流量思维/comments=10条）/ `rewrite`（局部改写）/ `POST /api/scripts/polish`（润色为大白话）
+- **看板同步**：建稿自动建父任务「脚本：《title》」+ 子任务「初稿」「定稿」（planned_date 双向以脚本侧为准）；**项目映射 ACCOUNT_PROJECT = 账号运营-一站式 / 账号运营-徕乔**（对齐线上既有项目名）；已发布→级联完成（prev_status 语义）；`skip_kanban` 跳过（历史导入用）
+- **前端**：`components/AppShell.tsx` 左侧边栏外壳（看板/脚本/润色/样稿库/设置，移动端底部 tab）；列表/样稿库=.btable 表格（样稿库账号 Tab）；一站式编辑器=元信息通栏+一体大文本（复制全文/口播字数/节点区）；徕乔编辑器=.xtable Excel 网格表（复制整表 TSV/从 Excel 粘贴回填）；RewriteTextarea 选中「✦ AI 改写」可撤销；首页 ScriptStatsBoard 置底（脚本统计+最近脚本表）
+- **视觉**：全站统一浅灰底 #F3F4F6 + 白卡大圆角（rounded-panel 20px）+ 柔阴影，品牌蓝 #007CFF 强调；新类 `.bpanel` `.btable` `.xtable`
+- **历史导入**：`scripts/import/dump-to-json.pl`（perl，dump→JSON）+ `samples-data.json`（64 条：一站式 11+食糖范本 / 徕乔 53，is_sample=0 待认可）+ `import-samples.mjs`（走 API，`--base --token [--dry-run]`，幂等查重）
+- 测试 182 全绿 + lint + build。**本机坑**：node/npm 不在 PATH（`export PATH=/d/APP:$PATH`）；Git Bash curl argv 中文转码——请求体用 `--data-binary @文件`；Bash stdout 捕获偶发失效——重定向到文件再读；dev 跑过会毁 .next 生产构建，起 start 前必须重新 build
+
+## 历史迭代（2026-09-23，v20.1 已上线，main fc0cd8e）
 
 - **修复「补记任务隐身」bug**：已完成且无排期日期（父无 deadline / 子无 planned_date）的任务此前在周视图无处显示（日期列只认排期日期、未排期栏和拖欠条都排除已完成），用户补记"昨天开了复盘会"后看不到任务，误以为新增失败（库里攒了 11 条隐身任务）。
 - **改法**：`lib/utils.ts` 新增 `weekPlacementDate()`——父看 deadline、子看 planned_date，已完成且无排期日期时按 `completed_at` 日期归位；`WeekView.tsx` 按天归组改用它。原有日期口径不变，只兜底补记场景；未排期栏/拖欠条逻辑未动。
