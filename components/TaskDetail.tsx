@@ -151,7 +151,7 @@ export default function TaskDetail({
   if (!detail) {
     return (
       <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
-        <div className="absolute bg-panel border-line p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l">
+        <div className="absolute bg-panel border-line p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l md:shadow-pop">
           <p className="text-sm text-ink-faint">加载中…</p>
         </div>
       </div>
@@ -163,7 +163,7 @@ export default function TaskDetail({
   return (
     <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="absolute bg-panel border-line overflow-y-auto p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l"
+        className="absolute bg-panel border-line overflow-y-auto p-5 inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl border-t md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none md:border-t-0 md:border-l md:shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 移动端顶部抓手 */}

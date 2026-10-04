@@ -53,10 +53,10 @@
   --brand: #007CFF;
   --brand-deep: #002F5B;
   --line: #E1E3E6;
-  /* 阴影分级：卡片浮于底 / 浮层浮于卡 / 按钮品牌蓝 */
-  --shadow-card: 0 1px 2px rgba(18, 18, 18, 0.04), 0 4px 16px rgba(18, 18, 18, 0.06);
-  --shadow-pop: 0 8px 30px rgba(18, 18, 18, 0.16);
-  --shadow-btn: 0 2px 8px rgba(0, 124, 255, 0.35);
+  /* 阴影分级：卡片浮于底 / 浮层浮于卡 / 按钮品牌蓝（v21 B 端化：更柔更扩散） */
+  --shadow-card: 0 1px 2px rgba(18, 18, 18, 0.03), 0 8px 28px rgba(18, 18, 18, 0.05);
+  --shadow-pop: 0 12px 44px rgba(18, 18, 18, 0.12);
+  --shadow-btn: 0 2px 8px rgba(0, 124, 255, 0.30);
 }
 
 body {
@@ -213,6 +213,125 @@ body {
   color: #8D9390;
 }
 
+/* ---- B 端表格化视觉（脚本模块重做，v21）：浅灰底 + 白色大圆角面板 + 柔阴影表格 ---- */
+.bpanel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+/* 表格：表头小字灰底 + 行分隔线 + 行 hover 泛蓝（配合 Tailwind 类使用） */
+.btable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.btable th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8D9390;
+  background: #f8f9fb;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.btable td {
+  padding: 8px 14px;
+  border-bottom: 1px solid #eef0f2;
+  vertical-align: top;
+}
+.btable tbody tr:hover {
+  background: #f5faff;
+}
+.btable tbody tr:last-child td {
+  border-bottom: none;
+}
+/* 移动端：表格降级为纵向卡片（td 用 data-label 标注列名） */
+@media (max-width: 767px) {
+  .btable,
+  .btable tbody,
+  .btable tr,
+  .btable td {
+    display: block;
+    width: 100%;
+  }
+  .btable thead {
+    display: none;
+  }
+  .btable tr {
+    border-bottom: 1px solid var(--line);
+    padding: 6px 0;
+  }
+  .btable tbody tr:hover {
+    background: transparent;
+  }
+  .btable td {
+    border-bottom: none;
+    padding: 5px 14px;
+  }
+  .btable td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    color: #8d9390;
+    margin-bottom: 2px;
+  }
+}
+
+/* Excel 式分镜表（徕乔编辑器）：可见细线网格 + 表头灰底 */
+.xtable {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #ffffff;
+}
+.xtable th,
+.xtable td {
+  border: 1px solid #d0d3d9;
+  padding: 6px 10px;
+  vertical-align: top;
+}
+.xtable th {
+  background: #f3f4f6;
+  font-size: 11px;
+  font-weight: 500;
+  color: #707070;
+  text-align: left;
+  white-space: nowrap;
+}
+.xtable tbody tr:hover td {
+  background: #fafbfd;
+}
+@media (max-width: 767px) {
+  .xtable,
+  .xtable tbody,
+  .xtable tr,
+  .xtable td {
+    display: block;
+    width: 100%;
+  }
+  .xtable thead {
+    display: none;
+  }
+  .xtable tr {
+    border-bottom: 1px solid var(--line);
+    padding: 6px 0;
+  }
+  .xtable td {
+    border: none;
+    padding: 5px 14px;
+  }
+  .xtable td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    color: #8d9390;
+    margin-bottom: 2px;
+  }
+}
+
 /* 无障碍：用户系统开启"减少动态效果"时，全站动效自动关闭 */
 @media (prefers-reduced-motion: reduce) {
   .breathe-glow,
@@ -298,7 +417,7 @@ body {
   background: #F6F6F4;
 }
 
-/* C visual direction: warm surfaces, quiet grid, readable task hierarchy. */
+/* C visual direction: B 端工作台——浅冷灰底 + 白色大圆角卡片浮起（v21 全站统一） */
 .kimi-workspace { -webkit-font-smoothing: antialiased; }
 .priority-select, .priority-filter { max-width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 5px 6px; font-size: 11px; line-height: 1.5; cursor: pointer; background: #f0f1f3; color: #626973; }
 .priority-select:disabled { opacity: .6; cursor: wait; }
@@ -307,14 +426,16 @@ body {
 .priority-3 { background: #fff3e4; color: #885315; }
 .priority-4 { background: #f0f1f3; color: #626973; }
 .kimi-workspace .week-board { background: transparent; border: 0; padding: 0; }
-.kimi-workspace .week-day { background: #f0efeb; border: 1px solid transparent; border-radius: 12px; }
-.kimi-workspace .week-day.today-col { background: #e5f2ff; }
-.kimi-workspace .week-task { background: white; padding: 12px 10px; border-color: transparent; border-radius: 10px; margin-bottom: 8px; }
+/* 日期列：白色卡片浮在灰底上，层级靠柔阴影而非边框 */
+.kimi-workspace .week-day { background: #ffffff; border: 1px solid #edeff2; border-radius: 16px; box-shadow: var(--shadow-card); }
+.kimi-workspace .week-day.today-col { background: #ffffff; }
+.kimi-workspace .week-task { background: white; padding: 12px 10px; border-color: transparent; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(18, 18, 18, 0.03); }
 .kimi-workspace .week-task:hover { border-color: #a0daf7; }
 @media(max-width:767px) { .priority-select { min-height:32px; } .kimi-workspace .week-task { padding:14px; } }
-.kimi-workspace .panel { box-shadow: none; }
-.capture-box { background: #f0efeb; }
-.stats-strip > :not(:last-child) { border-right: 1px solid #f0efeb; }
+/* 面板恢复柔阴影（此前被压成无阴影） */
+.kimi-workspace .panel { box-shadow: var(--shadow-card); }
+.capture-box { background: #ffffff; border: 1px solid var(--line); }
+.stats-strip > :not(:last-child) { border-right: 1px solid #edeff2; }
 .kimi-workspace .today-col { border: 1px solid #c4e1ff !important; }
 .kimi-workspace .breathe-glow,
 .kimi-workspace .overdue-pulse,
@@ -324,5 +445,5 @@ body {
 @media (max-width: 767px) {
   .capture-box { background: #fff; box-shadow: 0 3px 20px #1212120a; }
   .stats-strip > :nth-child(2) { border-right: 0; }
-  .stats-strip > :nth-child(n+3) { border-top: 1px solid #f0efeb; }
+  .stats-strip > :nth-child(n+3) { border-top: 1px solid #edeff2; }
 }

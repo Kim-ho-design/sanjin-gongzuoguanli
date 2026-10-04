@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { NextRequest } from 'next/server';
 import { SCHEMA_SQL } from '../db';
+import { todayStr } from '../utils';
 import { GET as notesGET, POST as notesPOST } from '../../app/api/notes/route';
 import { DELETE as noteDELETE } from '../../app/api/notes/[id]/route';
 
@@ -32,7 +33,7 @@ function postReq(body: unknown): NextRequest {
 
 describe('GET /api/notes', () => {
   it('默认返回当月记录', async () => {
-    db.prepare("INSERT INTO notes (note_date, content) VALUES ('2026-09-11', '今天的记录')").run();
+    db.prepare("INSERT INTO notes (note_date, content) VALUES (?, '今天的记录')").run(todayStr());
     db.prepare("INSERT INTO notes (note_date, content) VALUES ('2026-08-01', '上月的记录')").run();
     const res = await notesGET(new NextRequest('http://localhost/api/notes'));
     const json = await res.json();

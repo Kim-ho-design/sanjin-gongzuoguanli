@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "三金打工清单",
-  description: "计划—执行—记录—周报 闭环的个人工作管理系统",
+  title: "三金内容工作台",
+  description: "内容脚本生产 + 计划—执行—记录—周报 闭环的个人工作台",
   icons: { icon: '/icon.png', apple: '/apple-icon.png' },
   manifest: '/manifest.webmanifest',
 };

@@ -4,10 +4,33 @@ import type { ParseResult, ParseIntent } from './types';
 import { TASK_STATUSES } from './types';
 import { isValidDateStr } from './utils';
 
-const API_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 // v11：deepseek-chat 已被平台下线（400 报错提示可用型号），默认换 deepseek-v4-flash；
 // 可用 DEEPSEEK_MODEL 环境变量覆盖（如 deepseek-v4-pro，带推理、更慢更贵）
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+
+// 脚本工作台：LLM provider 可切换（需求文档四），默认 deepseek 保持不变；
+// kimi 走开放平台按量付费 key（OpenAI 兼容），KIMI_BASE_URL 可覆盖（如代理网关）
+const PROVIDER: 'deepseek' | 'kimi' = process.env.LLM_PROVIDER === 'kimi' ? 'kimi' : 'deepseek';
+const KIMI_URL = `${(process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1').replace(/\/+$/, '')}/chat/completions`;
+const KIMI_MODEL = process.env.KIMI_MODEL || 'kimi-k2-0905-preview';
+
+const PROVIDER_CONF = {
+  deepseek: {
+    url: DEEPSEEK_URL,
+    key: () => process.env.DEEPSEEK_API_KEY,
+    keyEnv: 'DEEPSEEK_API_KEY',
+    model: () => DEEPSEEK_MODEL,
+    label: 'DeepSeek',
+  },
+  kimi: {
+    url: KIMI_URL,
+    key: () => process.env.KIMI_API_KEY,
+    keyEnv: 'KIMI_API_KEY',
+    model: () => KIMI_MODEL,
+    label: 'Kimi',
+  },
+} as const;
 
 const INTENTS: ParseIntent[] = [
   'create_task',
@@ -23,33 +46,33 @@ export class LlmError extends Error {}
 // v16：LLM 调用 45s 超时兜底——超时返回干净的 JSON 错误，不再裸奔到 nginx 60s 504 HTML 页
 const LLM_TIMEOUT_MS = 45_000;
 
-/** 共享的 DeepSeek 调用：json=true 时强制 JSON 输出；extra 合并进请求体（如 thinking 配置）。
+/** 共享的 LLM 调用：json=true 时强制 JSON 输出；extra（如 thinking 配置）仅 deepseek 生效。
  *  messages 放宽到 assistant 角色以支持 v20 复盘对话的多轮历史直传 */
-async function callDeepSeek(
+async function callProvider(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
-  json: boolean,
-  extra: Record<string, unknown> = {},
+  opts: { json: boolean; extra: Record<string, unknown>; timeoutMs: number },
 ): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const conf = PROVIDER_CONF[PROVIDER];
+  const apiKey = conf.key();
   if (!apiKey) {
-    throw new LlmError('未配置 DEEPSEEK_API_KEY，请在 .env 中填入后重启服务。');
+    throw new LlmError(`未配置 ${conf.keyEnv}，请在 .env 中填入后重启服务。`);
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   let res: Response;
   try {
-    res = await fetch(API_URL, {
+    res = await fetch(conf.url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: conf.model(),
         temperature: 0,
-        ...(json ? { response_format: { type: 'json_object' } } : {}),
-        ...extra,
+        ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
+        ...(PROVIDER === 'deepseek' ? opts.extra : {}),
         messages,
       }),
       signal: controller.signal,
@@ -65,11 +88,40 @@ async function callDeepSeek(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new LlmError(`DeepSeek API 错误（${res.status}）：${text.slice(0, 200)}`);
+    throw new LlmError(`${conf.label} API 错误（${res.status}）：${text.slice(0, 200)}`);
   }
 
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? '';
+}
+
+/** 共享的 DeepSeek 调用：json=true 时强制 JSON 输出；extra 合并进请求体（如 thinking 配置） */
+async function callDeepSeek(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  json: boolean,
+  extra: Record<string, unknown> = {},
+): Promise<string> {
+  return callProvider(messages, { json, extra, timeoutMs: LLM_TIMEOUT_MS });
+}
+
+// 脚本工作台：生成长脚本给 110s 超时（nginx proxy_read_timeout 120s 之内）
+const SCRIPT_TIMEOUT_MS = 110_000;
+
+/** 脚本生成：默认 JSON mode；超时 110s；空内容抛 LlmError */
+export async function callScript(
+  systemPrompt: string,
+  userPayload: string,
+  opts: { json?: boolean } = {},
+): Promise<string> {
+  const content = await callProvider(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPayload },
+    ],
+    { json: opts.json ?? true, extra: {}, timeoutMs: SCRIPT_TIMEOUT_MS },
+  );
+  if (!content.trim()) throw new LlmError('AI 返回了空内容，请重试。');
+  return content;
 }
 
 /**

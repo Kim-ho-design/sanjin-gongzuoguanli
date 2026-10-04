@@ -12,7 +12,9 @@ import ConfirmCard from '@/components/ConfirmCard';
 import TaskDetail from '@/components/TaskDetail';
 import UnclaimedPanel from '@/components/UnclaimedPanel';
 import NotesPanel from '@/components/NotesPanel';
+import ScriptStatsBoard from '@/components/scripts/ScriptStatsBoard';
 import LlmStatusDot from '@/components/LlmStatusDot';
+import AppShell from '@/components/AppShell';
 import { AvatarLogo } from '@/components/Pixel';
 import { todayStr, splitByProgress } from '@/lib/utils';
 
@@ -179,11 +181,12 @@ export default function HomePage() {
   const progress = splitByProgress([...filteredTasks, ...filteredSubtasks], todayStr());
 
   return (
-    <main className="min-h-screen kimi-workspace flex flex-col">
+    <AppShell>
+      <main className="min-h-screen kimi-workspace flex flex-col bg-[#F3F4F6]">
       {/* 顶栏 */}
-      <header className="flex items-center gap-3 max-md:gap-2 px-8 max-md:px-4 py-5 max-md:py-4 border-b border-line/70 bg-[#FAF9F6]">
+      <header className="flex items-center gap-3 max-md:gap-2 px-8 max-md:px-4 py-5 max-md:py-4 border-b border-line/70 bg-white">
         <AvatarLogo size={32} />
-        <h1 className="text-lg max-md:text-base font-bold tracking-tight">三金打工清单</h1>
+        <h1 className="text-lg max-md:text-base font-bold tracking-tight">三金内容工作台</h1>
         <span className="text-[9px] font-mono text-ink-faint tracking-[0.12em] hidden lg:inline">
           PLAN · DO · LOG · REVIEW
         </span>
@@ -327,10 +330,13 @@ export default function HomePage() {
         ) : (
           !error && <p className="text-sm text-ink-faint py-10 text-center font-mono">LOADING…</p>
         )}
+
+        {/* 内容生产数据区：脚本统计 + 最近脚本（页面底部，无脚本时不渲染） */}
+        <ScriptStatsBoard />
       </div>
 
-      {/* 移动端吸底输入栏（最高频操作，拇指可及；背景渐变托底避免内容透出） */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 px-3 pb-3 pt-6 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6]/95 to-transparent">
+      {/* 移动端吸底输入栏（最高频操作，拇指可及；背景渐变托底避免内容透出；底部让位导航 tab bar） */}
+      <div className="md:hidden fixed bottom-14 inset-x-0 z-30 px-3 pb-3 pt-6 bg-gradient-to-t from-[#F3F4F6] via-[#F3F4F6]/95 to-transparent">
         <InputBox onParsed={handleParsed} />
       </div>
 
@@ -365,6 +371,7 @@ export default function HomePage() {
           {toast}
         </div>
       )}
-    </main>
+      </main>
+    </AppShell>
   );
 }

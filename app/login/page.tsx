@@ -33,8 +33,8 @@ export default function LoginPage() {
         <div className="flex items-center gap-3">
           <AvatarLogo size={40} />
           <div>
-            <h1 className="text-lg font-bold tracking-wide">三金打工清单</h1>
-            <p className="text-[10px] text-ink-faint font-mono tracking-[0.25em]">SANJIN · WORK LIST</p>
+            <h1 className="text-lg font-bold tracking-wide">三金内容工作台</h1>
+            <p className="text-[10px] text-ink-faint font-mono tracking-[0.25em]">SANJIN · CONTENT WORKBENCH</p>
           </div>
         </div>
         <input

@@ -44,13 +44,13 @@ const config: Config = {
         card: "#F6F6F4", // 暖灰浅底
       },
       borderRadius: {
-        panel: "16px",
-        card: "10px",
+        panel: "20px",
+        card: "12px",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(18, 18, 18, 0.04), 0 4px 16px rgba(18, 18, 18, 0.06)",
-        pop: "0 8px 30px rgba(18, 18, 18, 0.16)",
-        btn: "0 2px 8px rgba(0, 124, 255, 0.35)",
+        card: "0 1px 2px rgba(18, 18, 18, 0.03), 0 8px 28px rgba(18, 18, 18, 0.05)",
+        pop: "0 12px 44px rgba(18, 18, 18, 0.12)",
+        btn: "0 2px 8px rgba(0, 124, 255, 0.30)",
       },
       fontFamily: {
         sans: ["HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "system-ui", "sans-serif"],

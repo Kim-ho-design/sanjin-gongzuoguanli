@@ -2,8 +2,10 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { ensurePromptProfiles } from './prompts';
 
 const DATA_DIR = process.env.WORK_OS_DATA_DIR || path.join(process.cwd(), 'data');
+export { DATA_DIR };
 const DB_PATH = path.join(DATA_DIR, 'work-os.db');
 
 // Kimi 品牌配色（v17 起，对齐官方品牌手册）：只取白字可读的深中色
@@ -89,6 +91,60 @@ export const SCHEMA_SQL = `
     );
     CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(note_date);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+    CREATE TABLE IF NOT EXISTS scripts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      account TEXT NOT NULL CHECK (account IN ('yizhanshi','laiqiao')),
+      title TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT '写作中' CHECK (status IN ('写作中','初稿','定稿','已发布')),
+      is_sample INTEGER NOT NULL DEFAULT 0,
+      linked_task_id INTEGER,
+      draft_task_id INTEGER,
+      final_task_id INTEGER,
+      draft_date TEXT,
+      final_date TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      published_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS script_versions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      script_id INTEGER NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+      version_no INTEGER NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'manual' CHECK (kind IN ('ai_draft','manual')),
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS script_extras (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      script_id INTEGER NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+      type TEXT NOT NULL CHECK (type IN ('caption','tags','comments')),
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS script_refs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      script_id INTEGER NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      title TEXT,
+      fetched_content TEXT,
+      fetch_status TEXT NOT NULL DEFAULT 'pending' CHECK (fetch_status IN ('pending','ok','failed')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS prompt_profiles (
+      account TEXT PRIMARY KEY CHECK (account IN ('yizhanshi','laiqiao')),
+      base_prompt TEXT NOT NULL DEFAULT '',
+      auto_rules TEXT NOT NULL DEFAULT '',
+      auto_rules_updated_at TEXT,
+      manual_notes TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_scripts_account ON scripts(account);
+    CREATE INDEX IF NOT EXISTS idx_scripts_sample ON scripts(is_sample);
+    CREATE INDEX IF NOT EXISTS idx_script_versions_script ON script_versions(script_id);
+    CREATE INDEX IF NOT EXISTS idx_script_extras_script ON script_extras(script_id);
+    CREATE INDEX IF NOT EXISTS idx_script_refs_script ON script_refs(script_id);
   `;
 
 /** Nullable migration leaves historical tasks unset; safe on every startup.
@@ -206,6 +262,9 @@ function createDb(): Database.Database {
     const insert = db.prepare('INSERT INTO projects (name, color) VALUES (?, ?)');
     seed.forEach((name, i) => insert.run(name, PROJECT_COLORS[i % PROJECT_COLORS.length]));
   }
+
+  // 脚本工作台：两账号提示词种子（INSERT OR IGNORE，用户改过后不覆盖）
+  ensurePromptProfiles(db);
 
   return db;
 }

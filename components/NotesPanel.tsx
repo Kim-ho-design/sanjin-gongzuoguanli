@@ -253,7 +253,7 @@ export default function NotesPanel({
       {/* 浮窗：移动端贴底、桌面居中 */}
       <div className="absolute inset-0 flex items-end md:items-center justify-center p-3 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-lg bg-[#FAF9F6] border border-line rounded-t-3xl md:rounded-3xl shadow-pop pop-enter flex flex-col max-h-[86dvh] md:max-h-[80vh] overflow-hidden md:max-w-2xl"
+          className="pointer-events-auto w-full max-w-lg bg-white border border-line rounded-t-3xl md:rounded-3xl shadow-pop pop-enter flex flex-col max-h-[86dvh] md:max-h-[80vh] overflow-hidden md:max-w-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 移动端抓手 */}

@@ -86,7 +86,7 @@ export default function TopBar({
 
   return (
     <div className="relative">
-      <div className="stats-strip grid grid-cols-3 md:grid-cols-5 bg-white rounded-xl">
+      <div className="stats-strip grid grid-cols-3 md:grid-cols-5 bg-white rounded-2xl border border-line/50 shadow-card">
         <div className={`${cellCls} col-span-2 md:col-span-1 flex-wrap`}>
           <span className="text-xs text-ink-soft">本周进度</span>
           <strong className="text-2xl font-mono font-medium tracking-tight text-kimi-500">{rate === null ? '—' : `${rate}%`}</strong>

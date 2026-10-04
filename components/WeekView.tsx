@@ -109,7 +109,7 @@ export default function WeekView({
 
   return (
     <WeekContext.Provider value={{coarse, onToggle, parentById, onOpen, savePriority, priorityBusy, today, byDay, prioritySort, priorityOf}}>
-    <div className="week-board panel rounded-3xl p-4 max-md:p-3">
+    <div className="week-board p-1 max-md:p-0">
       {priorityError && <p role="alert" className="text-sm text-red-500 mb-2">{priorityError}</p>}
       {/* 周导航 */}
       <div className="flex items-center flex-wrap gap-3 max-md:gap-2 mb-3">
