@@ -27,16 +27,18 @@ function mustScript(scriptId: number): ScriptDetail {
 export type { YzContentV2 } from './script-content';
 /** 兼容旧 sections 格式：合并为 body + progress_nodes（lib/script-content.ts，re-export 保持导入路径不变） */
 export { normalizeYzContent } from './script-content';
-import { normalizeYzContent, normalizeLqRows } from './script-content';
+/** 徕乔 content v3（三板块）与旧 rows 合并归一 */
+export type { LqContentV3 } from './script-content';
+export { normalizeLqContent } from './script-content';
+import { normalizeLqContent, normalizeYzContent } from './script-content';
 
 /** 服务端解析 + 按账号校验 AI 返回的 JSON 结构；缺关键字段抛 LlmError（路由转 502）。
- *  一站式统一归一为 v2（一体文档 + 进度条节点数组）；徕乔行补 note_images。 */
+ *  一站式统一归一为 v2（一体文档 + 进度条节点数组）；徕乔归一为 v3（三板块）。 */
 export function validateDraft(account: ScriptDetail['account'], raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new LlmError('AI 返回的 JSON 结构不完整，请重试。');
   }
   const o = raw as Record<string, unknown>;
-  const str = (v: unknown) => typeof v === 'string';
   if (account === 'yizhanshi') {
     const v2 = normalizeYzContent(o);
     if (!v2.cover_title.trim()) {
@@ -47,17 +49,17 @@ export function validateDraft(account: ScriptDetail['account'], raw: unknown): R
     }
     return { ...v2 };
   }
-  if (!str(o.cover_title) || !o.cover_title.trim()) {
+  const v3 = normalizeLqContent(o);
+  if (!v3.cover_title.trim()) {
     throw new LlmError('AI 返回缺少封面标题 cover_title，请重试。');
   }
-  if (!str(o.post_title) || !o.post_title.trim()) {
+  if (!v3.post_title.trim()) {
     throw new LlmError('AI 返回缺少发文标题 post_title，请重试。');
   }
-  const rows = normalizeLqRows(o.rows);
-  if (rows.length === 0) {
-    throw new LlmError('AI 返回的 rows 结构不完整，请重试。');
+  if (!v3.voiceover_body.trim()) {
+    throw new LlmError('AI 返回缺少同期声口播 voiceover_body，请重试。');
   }
-  return { ...o, rows };
+  return { ...v3 };
 }
 
 /** 生成初稿：system prompt（三区组装）+ 选题方向/思路/参考链接正文 → 存 ai_draft 版本 */

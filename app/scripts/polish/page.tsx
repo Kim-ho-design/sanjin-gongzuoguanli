@@ -87,7 +87,9 @@ export default function PolishPage() {
           : {
               cover_title: '',
               post_title: '',
-              rows: [{ node_label: '', voiceover: polished, subtitle: '', note: '' }],
+              voiceover_body: polished,
+              visual_advice: '',
+              subtitle_advice: '',
             };
       const vRes = await fetch(`/api/scripts/${id}/versions`, {
         method: 'POST',

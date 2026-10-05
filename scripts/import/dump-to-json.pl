@@ -70,6 +70,30 @@ sub split_fields {
   return map { defined $_ ? trim($_) : '' } split /\s*\|\s*/, $line, -1;
 }
 
+# 机械断句竖排：按句读（。！？；）与已有换行断行，一句一行；<8 字的短句与下一句合并避免过碎；
+# 含（字幕：…）（画面：…）括注的句子整句跟走不断开
+sub verticalize {
+  my ($text) = @_;
+  my @sents =
+    grep { $_ ne '' }
+    map { my $s = trim($_); $s }
+    split /(?<=[。！？；])|\n+/, $text;
+  my (@lines, $buf);
+  for my $i (0 .. $#sents) {
+    my $s = $sents[$i];
+    if (defined $buf) {
+      push @lines, $buf . $s;
+      $buf = undef;
+    } elsif (length($s) < 8 && $i < $#sents) {
+      $buf = $s;    # 短句先攒着，与下一句合并
+    } else {
+      push @lines, $s;
+    }
+  }
+  push @lines, $buf if defined $buf;
+  return join("\n", @lines);
+}
+
 # ---------- 一站式（xlsx9_dump） ----------
 sub parse_yizhanshi {
   my @lines = read_lines('xlsx9_dump.txt');
@@ -127,7 +151,7 @@ sub parse_yizhanshi {
         framework   => $row{framework}   // '',
         audience    => $row{audience}    // '',
         keywords    => $row{keywords}    // [],
-        body        => $row{narration},
+        body        => verticalize($row{narration}),
         progress_nodes => [],
         end_card => $row{end_card} // '',
       },
@@ -232,6 +256,11 @@ sub parse_laiqiao {
         next;
       }
       my $title = $cover ne '' ? $cover : substr($post, 0, 30);
+      # 徕乔 content v3（三板块）：voiceover 竖排合并；visual/subtitle 去重以「；」join 并截断
+      my %seen_v; my @visuals = grep { $_ ne '' && !$seen_v{$_}++ } map { $_->{visual} } @out_rows;
+      my %seen_s; my @subs = grep { $_ ne '' && !$seen_s{$_}++ } map { $_->{subtitle} } @out_rows;
+      my $visual_advice = substr(join('；', @visuals), 0, 500);
+      my $subtitle_advice = substr(join('；', @subs), 0, 300);
       push @samples, {
         account   => 'laiqiao',
         title     => $title,
@@ -239,9 +268,11 @@ sub parse_laiqiao {
         notes     => '',
         source    => "xlsx_lc:$tag" . (@segments > 1 ? " 段$si" : ''),
         content   => {
-          cover_title => $cover,
-          post_title  => $post,
-          rows        => \@out_rows,
+          cover_title     => $cover,
+          post_title      => $post,
+          voiceover_body  => join("\n", grep { $_ ne '' } map { $_->{voiceover} } @out_rows),
+          visual_advice   => $visual_advice,
+          subtitle_advice => $subtitle_advice,
         },
       };
       $stats{laiqiao}{parsed}++;
@@ -264,8 +295,8 @@ sub parse_shitang {
       framework   => '痛点钩子（新规时机窗口）→扩禁控管解读→逐指标检测方案→资料引流',
       audience    => '制糖企业（糖厂）质检/化验室负责人、食品生产企业品控、第三方检测机构、食糖贸易商',
       keywords    => [ '食糖生产许可', '食糖检测', '仪器配置', '红糖新规', '掺假鉴别', '实验室建设' ],
-      # 一体文档：6 节旁白合并为一段连贯 body（节间空行），节点单独成数组
-      body        =>
+      # 一体文档：6 节旁白合并 + 机械断句竖排（段间保留空行），节点单独成数组
+      body        => join("\n\n", map { verticalize($_) } split /\n\n/, (
           "时隔二十年，食糖生产许可细则第一次大改。糖厂的化验室，这次真的要补仪器了。\n（字幕：20 年首次修订｜10.16截止）\n\n" .
           "核心就四个字：扩、禁、控、管。扩——红糖、液体糖全部纳入许可；禁——食糖里不许加淀粉糖；控——二氧化硫残留要有完整监控记录；管——分装企业原料和成品都得建检验制度。\n（字幕：扩 · 禁 · 控 · 管）\n\n" .
           "问题来了：监管怎么知道你到底加没加？靠嘴说没用。靠仪器。\n（字幕：怎么查？靠仪器）\n\n" .
@@ -277,7 +308,7 @@ sub parse_shitang {
           "第六关，也是最要命的一关：怎么证明你没加淀粉糖？稳定同位素比值质谱，测碳同位素——甘蔗、玉米是 C4 植物，甜菜是C3植物，一测就露馅。\n" .
           "传统实验室检测虽然精准，但慢。现在产线上直接挂在线近红外，一秒几十次数据，水分实时控，还能顺带省下干燥的能耗。\n\n" .
           "我把八类糖、七大检测指标对应的仪器配置，加上一份实验室合规自查清单，整理好了。评论区留\"食糖\"，或私我。也欢迎转给你们的质检负责人。\n\n" .
-          "末尾附 4 份引流干货：一、食糖八大门类速查（GB/T 35886-2018）；二、八类糖+七大检测指标必检矩阵（必检/建议检/按需）；三、七大检测指标+仪器配置对照表；四、实验室合规自查清单 10 条。",
+          "末尾附 4 份引流干货：一、食糖八大门类速查（GB/T 35886-2018）；二、八类糖+七大检测指标必检矩阵（必检/建议检/按需）；三、七大检测指标+仪器配置对照表；四、实验室合规自查清单 10 条。")),
       progress_nodes => [ '开头', '新规', '痛点', '方案', '收尾', '附录' ],
       end_card => '收藏这份配置清单',
     },

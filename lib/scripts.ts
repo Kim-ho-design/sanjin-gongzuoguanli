@@ -403,7 +403,7 @@ export function upsertPromptProfile(account: ScriptAccount, patch: PromptPatch):
 }
 
 // —— 阶段 F：脚本统计（首页数据条 / 单篇与合计口播字数） —— //
-import { countSpeakable, normalizeLqRows, normalizeYzContent } from './script-content';
+import { countSpeakable, normalizeLqContent, normalizeYzContent } from './script-content';
 
 export interface ScriptRecentItem {
   id: number;
@@ -438,8 +438,7 @@ export function scriptWords(script: Script, content: string | null): number {
   if (script.account === 'yizhanshi') {
     return countSpeakable(normalizeYzContent(o).body);
   }
-  const rows = normalizeLqRows(o.rows);
-  return countSpeakable(rows.map((r) => String(r.voiceover ?? '')).join(''));
+  return countSpeakable(normalizeLqContent(o).voiceover_body);
 }
 
 export function collectScriptStats(): ScriptStats {

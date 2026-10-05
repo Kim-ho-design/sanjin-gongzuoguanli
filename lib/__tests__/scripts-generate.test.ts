@@ -93,20 +93,28 @@ describe('validateDraft', () => {
     expect(out.progress_nodes).toEqual(['钩子', '方案']);
   });
 
-  it('徕乔行四字段宽容归一，note_images 忽略', () => {
+  it('徕乔旧 rows 自动合并为三板块，note_images 忽略', () => {
     const out = validateDraft('laiqiao', {
       cover_title: 'c',
       post_title: 'p',
       rows: [
-        { voiceover: 'a', visual: '产品特写', note: '近景' },
-        { voiceover: 'b', note_images: ['/api/script-assets/x.png'], note: '只有备注' },
+        { voiceover: '第一句', visual: '产品特写', subtitle: '新品' },
+        { voiceover: '第二句', visual: '产品特写', note_images: ['/x.png'] },
       ],
-    }) as { rows: { voiceover: string; visual: string; subtitle: string; note: string; note_images?: string[] }[] };
-    expect(out.rows[0].visual).toBe('产品特写'); // visual 独立保留，不再并入 note
-    expect(out.rows[0].note).toBe('近景');
-    expect(out.rows[1].note).toBe('只有备注');
-    expect(out.rows[0].subtitle).toBe('');
-    expect(out.rows[0].note_images).toBeUndefined(); // 不再保留
+    }) as { voiceover_body: string; visual_advice: string; subtitle_advice: string; rows?: unknown };
+    expect(out.voiceover_body).toBe('第一句\n第二句');
+    expect(out.visual_advice).toBe('产品特写'); // 去重
+    expect(out.subtitle_advice).toBe('新品');
+    expect(out.rows).toBeUndefined(); // 旧字段不再保留
+  });
+
+  it('徕乔 v3 缺 voiceover_body 抛 LlmError', () => {
+    expect(() =>
+      validateDraft('laiqiao', { cover_title: 'c', post_title: 'p', voiceover_body: '' }),
+    ).toThrow(/voiceover_body/);
+    expect(() =>
+      validateDraft('laiqiao', { cover_title: 'c', post_title: ' ', voiceover_body: '有同期声' }),
+    ).toThrow(/post_title/);
   });
 });
 
@@ -153,21 +161,23 @@ describe('generateDraft', () => {
     expect(getScript(s.id)!.title).toBe('万分之一天平怎么选');
   });
 
-  it('徕乔：post_title + rows 结构落库', async () => {
+  it('徕乔：三板块结构落库', async () => {
     const s = createScript({ account: 'laiqiao', title: 'D', direction: 'D' });
     vi.mocked(callScript).mockResolvedValue(
       JSON.stringify({
         cover_title: '搅拌/混匀 新品亮相',
         post_title: '新品上市 #LACHOI徕乔',
-        rows: [{ node_label: '开篇', voiceover: '', visual: '产品特写', subtitle: '新品', note: '近景' }],
+        voiceover_body: '为什么样品没溶解？\n今天拿它实测一下。',
+        visual_advice: '产品特写+快切为主',
+        subtitle_advice: '卖点用字幕条',
       }),
     );
     const { draft } = await generateDraft(s.id);
-    expect(draft.post_title).toContain('#LACHOI徕乔');
-    const rows = (draft as { rows: { visual: string; note: string; subtitle: string }[] }).rows;
-    expect(rows[0].visual).toBe('产品特写');
-    expect(rows[0].note).toBe('近景');
-    expect(rows[0].subtitle).toBe('新品');
+    const v3 = draft as { post_title: string; voiceover_body: string; visual_advice: string; subtitle_advice: string };
+    expect(v3.post_title).toContain('#LACHOI徕乔');
+    expect(v3.voiceover_body).toContain('实测一下');
+    expect(v3.visual_advice).toBe('产品特写+快切为主');
+    expect(v3.subtitle_advice).toBe('卖点用字幕条');
     expect(getScript(s.id)!.title).toBe('搅拌/混匀 新品亮相');
   });
 

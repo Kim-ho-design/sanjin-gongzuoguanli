@@ -279,59 +279,6 @@ body {
   }
 }
 
-/* Excel 式分镜表（徕乔编辑器）：可见细线网格 + 表头灰底 */
-.xtable {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-  font-size: 13px;
-  background: #ffffff;
-}
-.xtable th,
-.xtable td {
-  border: 1px solid #d0d3d9;
-  padding: 6px 10px;
-  vertical-align: top;
-}
-.xtable th {
-  background: #f3f4f6;
-  font-size: 11px;
-  font-weight: 500;
-  color: #707070;
-  text-align: left;
-  white-space: nowrap;
-}
-.xtable tbody tr:hover td {
-  background: #fafbfd;
-}
-@media (max-width: 767px) {
-  .xtable,
-  .xtable tbody,
-  .xtable tr,
-  .xtable td {
-    display: block;
-    width: 100%;
-  }
-  .xtable thead {
-    display: none;
-  }
-  .xtable tr {
-    border-bottom: 1px solid var(--line);
-    padding: 6px 0;
-  }
-  .xtable td {
-    border: none;
-    padding: 5px 14px;
-  }
-  .xtable td[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    font-size: 10px;
-    color: #8d9390;
-    margin-bottom: 2px;
-  }
-}
-
 /* 无障碍：用户系统开启"减少动态效果"时，全站动效自动关闭 */
 @media (prefers-reduced-motion: reduce) {
   .breathe-glow,

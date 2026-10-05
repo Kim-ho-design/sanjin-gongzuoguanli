@@ -35,11 +35,11 @@ describe('collectScriptStats', () => {
       cover_title: 'B',
       sections: [{ node_label: '全文', narration: '一二三四五', subtitle: '注释', visual: '' }],
     }));
-    // 徕乔：voiceover 合计
+    // 徕乔：voiceover_body 去括注字数
     const c = createScript({ account: 'laiqiao', title: 'C', direction: 'D', skip_kanban: true });
     saveVersion(c.id, JSON.stringify({
       cover_title: 'C', post_title: 'p',
-      rows: [{ voiceover: '第一句台词' }, { voiceover: '第二句' }, { voiceover: '' }],
+      voiceover_body: '第一句台词\n第二句（字幕：注）',
     }));
     // 无版本脚本：0 字
     createScript({ account: 'laiqiao', title: 'D', direction: 'D', skip_kanban: true });

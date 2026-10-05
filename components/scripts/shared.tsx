@@ -97,18 +97,12 @@ export interface YzDraft {
   end_card: string;
 }
 
-export interface LqRow {
-  node_label: string;
-  voiceover: string;
-  visual: string;
-  subtitle: string;
-  note: string;
-}
-
 export interface LqDraft {
   cover_title: string;
   post_title: string;
-  rows: LqRow[];
+  voiceover_body: string;
+  visual_advice: string;
+  subtitle_advice: string;
 }
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -170,23 +164,29 @@ export function parseLqDraft(text: string | null): LqDraft {
       o = {};
     }
   }
-  const rows = Array.isArray(o.rows)
-    ? (o.rows as Record<string, unknown>[]).map((r) => ({
-        // 旧版曾把 visual 并入 note 的数据不拆回（note_images 忽略）
-        node_label: str(r?.node_label),
-        voiceover: str(r?.voiceover),
-        visual: str(r?.visual),
-        subtitle: str(r?.subtitle),
-        note: str(r?.note),
-      }))
-    : [];
-  return {
+  const base: LqDraft = {
     cover_title: str(o.cover_title),
     post_title: str(o.post_title),
-    rows: rows.length
-      ? rows
-      : [{ node_label: '', voiceover: '', visual: '', subtitle: '', note: '' }],
+    voiceover_body: str(o.voiceover_body),
+    visual_advice: str(o.visual_advice),
+    subtitle_advice: str(o.subtitle_advice),
   };
+  // 旧 rows[] 格式合并（与 lib/script-content.ts normalizeLqContent 同款规则）
+  if (!base.voiceover_body && Array.isArray(o.rows)) {
+    const rows = o.rows as Record<string, unknown>[];
+    const uniqJoin = (key: string, max: number) => {
+      const seen = new Set<string>();
+      for (const r of rows) {
+        const v = str(r?.[key]).trim();
+        if (v) seen.add(v);
+      }
+      return Array.from(seen).join('；').slice(0, max);
+    };
+    base.voiceover_body = rows.map((r) => str(r?.voiceover).trim()).filter(Boolean).join('\n');
+    base.visual_advice = uniqJoin('visual', 500);
+    base.subtitle_advice = uniqJoin('subtitle', 300);
+  }
+  return base;
 }
 
 /* ---- 徽标 ---- */

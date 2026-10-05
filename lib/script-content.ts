@@ -47,24 +47,38 @@ export function normalizeYzContent(raw: Record<string, unknown>): YzContentV2 {
   return base;
 }
 
-/** 徕乔行归一（四列：同期声/呈现/字幕/拍摄后期注意点）。note_images 忽略不再渲染。 */
-export interface LqRowNorm {
-  node_label: string;
-  voiceover: string;
-  visual: string;
-  subtitle: string;
-  note: string;
+/** 徕乔 content v3（三板块）：同期声竖排口播 + 画面呈现建议 + 字幕建议 */
+export interface LqContentV3 {
+  cover_title: string;
+  post_title: string;
+  voiceover_body: string;
+  visual_advice: string;
+  subtitle_advice: string;
 }
 
-export function normalizeLqRows(raw: unknown): LqRowNorm[] {
-  if (!Array.isArray(raw)) return [];
-  return (raw as Record<string, unknown>[]).map((r) => ({
-    node_label: str(r?.node_label),
-    voiceover: str(r?.voiceover),
-    visual: str(r?.visual),
-    subtitle: str(r?.subtitle),
-    note: str(r?.note),
-  }));
+/** 兼容旧 rows[] 格式：voiceover 非空项 join('\n')；visual/subtitle 非空项去重以「；」join 并截断 */
+export function normalizeLqContent(raw: Record<string, unknown>): LqContentV3 {
+  const base: LqContentV3 = {
+    cover_title: str(raw.cover_title),
+    post_title: str(raw.post_title),
+    voiceover_body: str(raw.voiceover_body),
+    visual_advice: str(raw.visual_advice),
+    subtitle_advice: str(raw.subtitle_advice),
+  };
+  if (base.voiceover_body || !Array.isArray(raw.rows)) return base;
+  const rows = raw.rows as Record<string, unknown>[];
+  const uniqJoin = (key: string, max: number) => {
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const v = str(r?.[key]).trim();
+      if (v) seen.add(v);
+    }
+    return Array.from(seen).join('；').slice(0, max);
+  };
+  base.voiceover_body = rows.map((r) => str(r?.voiceover).trim()).filter(Boolean).join('\n');
+  base.visual_advice = uniqJoin('visual', 500);
+  base.subtitle_advice = uniqJoin('subtitle', 300);
+  return base;
 }
 
 /** 口播字数：去掉（）与【】注释、空白后的字符数 */
