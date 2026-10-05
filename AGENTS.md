@@ -14,6 +14,12 @@
 - **历史导入**：`scripts/import/dump-to-json.pl`（perl，dump→JSON）+ `samples-data.json`（64 条：一站式 11+食糖范本 / 徕乔 53，is_sample=0 待认可）+ `import-samples.mjs`（走 API，`--base --token [--dry-run]`，幂等查重）
 - 测试 182 全绿 + lint + build。**本机坑**：node/npm 不在 PATH（`export PATH=/d/APP:$PATH`）；Git Bash curl argv 中文转码——请求体用 `--data-binary @文件`；Bash stdout 捕获偶发失效——重定向到文件再读；dev 跑过会毁 .next 生产构建，起 start 前必须重新 build
 
+## v21.1（2026-10-05 已上线）
+
+- **徕乔编辑器废弃表格，改三板块**：① 同期声（口播文案，竖排大文本+字数+复制全文）② 画面呈现建议 ③ 字幕建议。content v3 = `{cover_title, post_title, voiceover_body, visual_advice, subtitle_advice}`；`normalizeLqContent` 合并旧 rows（voiceover join \n、visual/subtitle 去重 join '；' 截断）；`.xtable` 样式与复制整表/Excel 粘贴功能已删
+- **一站式存量样稿竖排化**：dump-to-json.pl 加 verticalize（句读+已有换行断句、<8 字短句并下句、括注跟句）；生产 64 条已清旧重导（API 逐条 DELETE + import-samples.mjs，幂等）
+- 测试 183 全绿。⚠️ 部署事故：子代理遗留 commit_j.txt 被 deploy.sh 提交成空壳 commit 且推送中断（api.github.com socket 断），处理 = git reset --hard 回真 commit 后重跑 deploy.sh；教训 = 部署前 git status 检查杂文件
+
 ## 历史迭代（2026-09-23，v20.1 已上线，main fc0cd8e）
 
 - **修复「补记任务隐身」bug**：已完成且无排期日期（父无 deadline / 子无 planned_date）的任务此前在周视图无处显示（日期列只认排期日期、未排期栏和拖欠条都排除已完成），用户补记"昨天开了复盘会"后看不到任务，误以为新增失败（库里攒了 11 条隐身任务）。
